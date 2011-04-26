@@ -226,8 +226,9 @@ static void tsp_create_tunnel(struct client_session *session,
 		goto create_error;
 	if (!inet_aton(req.v4addr, &v4addr))
 		goto create_error;
-	if (v4addr.s_addr != session->v4addr.s_addr)
-		goto create_error;
+	if (v4addr.s_addr != session->v4addr.s_addr) {
+		session->nataddr.s_addr = v4addr.s_addr;
+	}
 	session->keepalive = req.keepalive;
 
 	dbg_tsp("Create tunnel check passed");

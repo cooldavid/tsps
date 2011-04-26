@@ -30,6 +30,7 @@
 #include <stdint.h>
 
 struct client_session {
+	struct in_addr		nataddr;
 	struct in_addr		v4addr;
 	uint16_t		v4port;
 	struct in6_addr		v6addr;
