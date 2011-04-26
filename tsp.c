@@ -67,12 +67,11 @@ void process_tun_packet(const char *data, ssize_t len)
 static void tsp_reply(struct client_session *session,
 			struct tsphdr *tsp, const char *msg)
 {
-	int len = strlen(msg) + 1;
+	int len = strlen(msg);
 
 	if ((len + sizeof(struct tsphdr)) > MTU)
 		len = MTU - sizeof(struct tsphdr);
 	strncpy(tsp->data, msg, len);
-	tsp->data[len - 1] = '\0';
 	socket_sendto(tsp, len + sizeof(struct tsphdr),
 			&session->v4addr, session->v4port);
 }
