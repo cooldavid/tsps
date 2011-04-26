@@ -44,7 +44,7 @@ expat-2.0.1/Makefile: expat-2.0.1
 	cd expat-2.0.1 && ./configure
 	if [ -f $@ ]; then touch $@; fi
 
-expat-2.0.1/.libs/libexpat.a: expat-2.0.1/Makefile
+$(XMLLIB): expat-2.0.1/Makefile
 	$(MAKE) -C expat-2.0.1
 	if [ -f $@ ]; then touch $@; fi
 
