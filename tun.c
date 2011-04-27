@@ -77,6 +77,7 @@ static int tun_alloc(void)
 
 static int tun_linux_setaddr(void)
 {
+	char errbuf[64];
 	struct in6_ifreq ifr6;
 	struct ifreq ifr;
 	int fd;
@@ -89,18 +90,20 @@ static int tun_linux_setaddr(void)
 	 */
 	fd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (fd < 0) {
-		fprintf(stderr, "No support for INET6 on this system.\n");
+		tspslog(LOG_ERR, "No support for INET6 on this system");
 		return -1;
 	}
 	strcpy(ifr.ifr_name, server.tundev);
 	if (ioctl(fd, SIOGIFINDEX, &ifr) < 0) {
-		perror("SIOGIFINDEX");
+		strerror_r(errno, errbuf, sizeof(errbuf));
+		tspslog(LOG_ERR, "Getting interface index error: %s", errbuf);
 		return -1;
 	}
 	ifr6.ifr6_ifindex = ifr.ifr_ifindex;
 	ifr6.ifr6_prefixlen = server.v6prefixlen;
 	if (ioctl(fd, SIOCSIFADDR, &ifr6) < 0) {
-		perror("SIOCSIFADDR");
+		strerror_r(errno, errbuf, sizeof(errbuf));
+		tspslog(LOG_ERR, "Setting interface address error: %s", errbuf);
 		return -1;
 	}
 
@@ -109,13 +112,15 @@ static int tun_linux_setaddr(void)
 	 */
 	strcpy(ifr.ifr_name, server.tundev);
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
-		perror("SIOCGIFFLAGS");
+		strerror_r(errno, errbuf, sizeof(errbuf));
+		tspslog(LOG_ERR, "Getting interface flags error: %s", errbuf);
 		return -1;
 	}
 	strcpy(ifr.ifr_name, server.tundev);
 	ifr.ifr_flags |= (IFF_UP | IFF_RUNNING);
 	if (ioctl(fd, SIOCSIFFLAGS, &ifr) < 0) {
-		perror("SIOCSIFFLAGS");
+		strerror_r(errno, errbuf, sizeof(errbuf));
+		tspslog(LOG_ERR, "Setting interface flags error: %s", errbuf);
 		return -1;
 	}
 	return 0;
@@ -127,7 +132,7 @@ int tun_setaddr(void)
 #ifdef linux
 	return tun_linux_setaddr();
 #else
-	fprintf(stderr, "Address setting not implement\n");
+	tspslog(LOG_ERR, "Address setting not implement");
 	return -1;
 #endif
 }
@@ -154,7 +159,7 @@ void tun_write(void *data, int len)
 		rc = write(server.tunfd, buf, sizeof(struct tun_pi) + len);
 		if (rc == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
-			tspslog("Write error");
+			tspslog(LOG_ERR, "Fail to write to server tun interface");
 			break;
 		}
 	} while (rc <= 0);

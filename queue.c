@@ -109,7 +109,7 @@ void enqueue_tun(void)
 		length_tun[ptr] = read(server.tunfd, queue_tun[ptr], MTU);
 		if (length_tun[ptr] == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
-			tspslog("Read error");
+			tspslog(LOG_ERR, "Fail to read from server tun interface");
 			exit(EXIT_FAILURE);
 		}
 	} while (length_tun[ptr] <= 0);
@@ -137,7 +137,7 @@ void enqueue_sock(void)
 				&socklen);
 		if (length_sock[ptr] == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
-			tspslog("Recvfrom error");
+			tspslog(LOG_ERR, "Fail to read from server UDP socket");
 			exit(EXIT_FAILURE);
 		}
 	} while (length_sock[ptr] <= 0);
@@ -154,7 +154,7 @@ void drop_tun(void)
 		length = read(server.tunfd, dummy, MTU);
 		if (length == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
-			tspslog("Read error");
+			tspslog(LOG_ERR, "Fail to read from server tun interface");
 			exit(EXIT_FAILURE);
 		}
 	} while (length <= 0);
@@ -169,7 +169,7 @@ void drop_sock(void)
 		length = recvfrom(server.sockfd, dummy, MTU, 0, NULL, NULL);
 		if (length == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
-			tspslog("Read error");
+			tspslog(LOG_ERR, "Fail to read from server UDP socket");
 			exit(EXIT_FAILURE);
 		}
 	} while (length <= 0);
@@ -218,8 +218,8 @@ void block_on_tun_empty(void)
 		ts.tv_sec += 1;
 		rc = pthread_cond_timedwait(&cond_tunqueue, &lock_tunqueue, &ts);
 		if (rc != 0 && rc != ETIMEDOUT) {
-			tspslog("Conditional wait error");
-			exit(1);
+			tspslog(LOG_ERR, "Conditional wait error");
+			exit(EXIT_FAILURE);
 		}
 	}
 	pthread_mutex_unlock(&lock_tunqueue);
@@ -236,8 +236,8 @@ void block_on_sock_empty(void)
 		ts.tv_sec += 1;
 		rc = pthread_cond_timedwait(&cond_sockqueue, &lock_sockqueue, &ts);
 		if (rc != 0 && rc != ETIMEDOUT) {
-			tspslog("Conditional wait error");
-			exit(1);
+			tspslog(LOG_ERR, "Conditional wait error");
+			exit(EXIT_FAILURE);
 		}
 	}
 	pthread_mutex_unlock(&lock_sockqueue);

@@ -28,6 +28,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <stdint.h>
+#include <syslog.h>
 
 struct client_session {
 	struct in_addr		nataddr;
@@ -139,7 +140,7 @@ char *build_tunnel_offer(struct client_session *session);
 void parse_tunnel_ack(char *xml, int contlen, struct tunnel_ack *ack);
 
 /* log.c */
-void tspslog(const char *msg, ...);
+void tspslog(int prio, const char *msg, ...);
 
 /* debug.c */
 void dbg_thread(const char *dbgmsg, ...);

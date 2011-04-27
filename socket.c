@@ -35,13 +35,13 @@ int bind_socket(void)
 {
 	server.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (server.sockfd == -1) {
-		fprintf (stderr, "Failed to create UDPv4 socket\n");
+		tspslog(LOG_ERR, "Failed to create UDPv4 socket");
 		return -1;
 	}
 	if (bind(server.sockfd,
 			(struct sockaddr *)&server.v4sockaddr,
 			sizeof(struct sockaddr_in)) != 0) {
-		fprintf (stderr, "Failed to bind to UDPv4 %s:%d: %s\n",
+		tspslog(LOG_ERR, "Failed to bind to UDPv4 %s:%d: %s",
 				inet_ntoa(server.v4sockaddr.sin_addr),
 				ntohs(server.v4sockaddr.sin_port),
 				strerror(errno));
@@ -64,7 +64,7 @@ void socket_sendto(void *data, int len, struct in_addr *addr, in_port_t port)
 		rc = sendto(server.sockfd, data, len, 0, (struct sockaddr *)&saddr, scklen);
 		if (rc == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
-			tspslog("Sendto error");
+			tspslog(LOG_ERR, "Fail to send to server UDP socket");
 			break;
 		}
 	} while (rc <= 0);

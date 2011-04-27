@@ -27,16 +27,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-void tspslog(const char *msg, ...)
+void tspslog(int prio, const char *msg, ...)
 {
 	va_list ap;
-	int len = strlen(msg);
-	char *fmt = calloc(1, len + 16);
-	if (!fmt)
-		return;
-
 	va_start(ap, msg);
-	sprintf(fmt, "tsps: %s\n", msg);
-	vfprintf(stderr, fmt, ap);
-	free(fmt);
+	vsyslog(prio, msg, ap);
 }
+

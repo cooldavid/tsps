@@ -176,6 +176,8 @@ static int check_server_configure(void)
 
 int main(int argc, char *argv[], char *envv[])
 {
+	openlog("tsps", LOG_CONS, LOG_USER);
+
 	if (parse_args(argc, argv)) {
 		usage(argv[0]);
 		return EXIT_FAILURE;

@@ -280,7 +280,7 @@ static void tsp_data(struct client_session *session,
 	static char addr1[64], addr2[64];
 
 	if (memcmp(&v6hdr->ip6_src, &session->v6addr, sizeof(struct in6_addr))) {
-		tspslog("Droped packet due to client v6 address mismatch:\n\t%s\n\t%s",
+		tspslog(LOG_ERR, "Droped packet due to client v6 address mismatch:\n\t%s\n\t%s",
 				inet_ntop(AF_INET6, &v6hdr->ip6_src, addr1, sizeof(addr1)),
 				inet_ntop(AF_INET6, &session->v6addr, addr2, sizeof(addr2)));
 		return;

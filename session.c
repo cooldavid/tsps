@@ -159,8 +159,8 @@ create_session(const struct sockaddr_in *addr)
 
 	session = calloc(1, sizeof(*session));
 	if (!session) {
-		tspslog("Out of memory");
-		exit(1);
+		tspslog(LOG_ERR, "Create session: Out of memory");
+		exit(EXIT_FAILURE);
 	}
 	session->v4addr.s_addr = addr->sin_addr.s_addr;
 	session->v4port = ntohs(addr->sin_port);
