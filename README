@@ -1,0 +1,7 @@
+An implementation of RFC5572.
+And complete auto registration framework.
+Tested with gw6c and gogoc1.2 client.
+
+Only partial implementation has done.
+This project is still actively on-going!
+
