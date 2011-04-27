@@ -1,6 +1,7 @@
 
 TODO:
  * Session clean-up thread
+ * Keepalive implementation
  * Native routing between connected clients
  * SQLite authentication backend
  * MD5-DIGEST authentication support
