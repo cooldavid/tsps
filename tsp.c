@@ -270,6 +270,11 @@ static void tsp_disconnect(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	tsp_reply(session, tsp, "310 TSP status error\r\n");
+	tspslog(LOG_INFO, "Client %s:%u %s",
+			inet_ntoa(session->v4addr),
+			session->v4port,
+			(session->status == STAT_HELLO)?
+				"unauthorized": "disconnected");
 	kill_session(session);
 }
 
@@ -310,6 +315,9 @@ void process_sock_packet(const struct sockaddr_in *client,
 		switch (session->status) {
 		case STAT_HELLO:
 			dbg_tsp("STAT_HELLO");
+			tspslog(LOG_INFO, "Client %s:%u connecting.",
+					inet_ntoa(client->sin_addr),
+					ntohs(client->sin_port));
 			tsp_version_cap(session, tsphdr, len);
 			break;
 		case STAT_AUTH:
@@ -327,6 +335,10 @@ void process_sock_packet(const struct sockaddr_in *client,
 		case STAT_CONFIRM:
 			dbg_tsp("STAT_CONFIRM");
 			tsp_confirm_tunnel(session, tsphdr, len);
+			if (session->status == STAT_ESTAB)
+				tspslog(LOG_INFO, "Client %s:%u connected.",
+						inet_ntoa(client->sin_addr),
+						ntohs(client->sin_port));
 			break;
 		case STAT_ESTAB:
 			dbg_tsp("STAT_ESTAB");
