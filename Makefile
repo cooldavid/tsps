@@ -20,9 +20,8 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-CFLAGS+=-Wall -I expat-2.0.1/lib
-XMLLIB=expat-2.0.1/.libs/libexpat.so
-LDFLAGS+=-lpthread -lrt -lexpat -L expat-2.0.1/.libs -Xlinker -rpath=`pwd`/expat-2.0.1/.libs
+CFLAGS+=-Wall
+LDFLAGS+=-lpthread -lrt -lexpat
 
 ifdef DBG
 CFLAGS+=-DDEBUG_$(DBG) -g
@@ -36,26 +35,11 @@ all: tsps
 
 $(OBJS): tsps.h
 
-expat-2.0.1: expat-2.0.1.tar.gz
-	tar -zxf expat-2.0.1.tar.gz
-	if [ -d $@ ]; then touch $@; fi
-
-expat-2.0.1/Makefile: expat-2.0.1
-	cd expat-2.0.1 && ./configure
-	if [ -f $@ ]; then touch $@; fi
-
-$(XMLLIB): expat-2.0.1/Makefile
-	$(MAKE) -C expat-2.0.1
-	if [ -f $@ ]; then touch $@; fi
-
-tsps: $(OBJS) tsps.h $(XMLLIB)
+tsps: $(OBJS) tsps.h
 	$(CC) -o $@ $(LDFLAGS) $(OBJS)
 
 clean:
 	@rm -rf tsps *.o
 
-distclean: clean
-	@rm -rf expat-2.0.1
-
-.PHONY: all clean distclean
+.PHONY: all clean
 
