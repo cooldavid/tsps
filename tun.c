@@ -31,6 +31,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <string.h>
+#include <stdlib.h>
 
 static int tun_open(void)
 {
@@ -144,6 +145,18 @@ int bind_tunif(void)
 #else
 	return tun_open();
 #endif
+}
+
+void tun_read(void *data, int *len)
+{
+	do {
+		*len = read(server.tunfd, data, MTU);
+		if (*len == -1 &&
+		    errno != EAGAIN && errno != EINTR) {
+			tspslog(LOG_ERR, "Fail to read from server tun interface");
+			exit(EXIT_FAILURE);
+		}
+	} while (*len <= 0);
 }
 
 void tun_write(void *data, int len)

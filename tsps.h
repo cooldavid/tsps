@@ -93,10 +93,13 @@ extern struct tspserver server;
 /* tun.c */
 int bind_tunif(void);
 int tun_setaddr(void);
+void tun_read(void *data, int *len);
 void tun_write(void *data, int len);
 
 /* socket.c */
 int bind_socket(void);
+void socket_recvfrom(void *data, int *len,
+			struct sockaddr_in *addr, socklen_t *scklen);
 void socket_sendto(void *data, int len,
 			struct in_addr *addr, in_port_t port);
 

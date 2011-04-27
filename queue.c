@@ -105,15 +105,7 @@ void enqueue_tun(void)
 	freeptr_tun %= QUEUE_SIZE;
 	pthread_mutex_unlock(&lock_tunqueue);
 
-	do {
-		length_tun[ptr] = read(server.tunfd, queue_tun[ptr], MTU);
-		if (length_tun[ptr] == -1 &&
-		    errno != EAGAIN && errno != EINTR) {
-			tspslog(LOG_ERR, "Fail to read from server tun interface");
-			exit(EXIT_FAILURE);
-		}
-	} while (length_tun[ptr] <= 0);
-
+	tun_read(queue_tun[ptr], &length_tun[ptr]);
 	pthread_cond_signal(&cond_tunqueue);
 }
 
@@ -131,17 +123,8 @@ void enqueue_sock(void)
 	freeptr_sock %= QUEUE_SIZE;
 	pthread_mutex_unlock(&lock_sockqueue);
 
-	do {
-		length_sock[ptr] = recvfrom(server.sockfd, queue_sock[ptr], MTU, 0,
-				(struct sockaddr *)&client_addr[ptr],
-				&socklen);
-		if (length_sock[ptr] == -1 &&
-		    errno != EAGAIN && errno != EINTR) {
-			tspslog(LOG_ERR, "Fail to read from server UDP socket");
-			exit(EXIT_FAILURE);
-		}
-	} while (length_sock[ptr] <= 0);
-
+	socket_recvfrom(queue_sock[ptr], &length_sock[ptr],
+			&client_addr[ptr], &socklen);
 	pthread_cond_signal(&cond_sockqueue);
 }
 
@@ -150,14 +133,7 @@ void drop_tun(void)
 	static char dummy[MTU];
 	ssize_t length;
 
-	do {
-		length = read(server.tunfd, dummy, MTU);
-		if (length == -1 &&
-		    errno != EAGAIN && errno != EINTR) {
-			tspslog(LOG_ERR, "Fail to read from server tun interface");
-			exit(EXIT_FAILURE);
-		}
-	} while (length <= 0);
+	tun_read(dummy, &length);
 }
 
 void drop_sock(void)
@@ -165,14 +141,7 @@ void drop_sock(void)
 	static char dummy[MTU];
 	ssize_t length;
 
-	do {
-		length = recvfrom(server.sockfd, dummy, MTU, 0, NULL, NULL);
-		if (length == -1 &&
-		    errno != EAGAIN && errno != EINTR) {
-			tspslog(LOG_ERR, "Fail to read from server UDP socket");
-			exit(EXIT_FAILURE);
-		}
-	} while (length <= 0);
+	socket_recvfrom(dummy, &length, NULL, NULL);
 }
 
 void dequeue_tun(void)

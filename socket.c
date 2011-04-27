@@ -51,6 +51,20 @@ int bind_socket(void)
 	return 0;
 }
 
+void socket_recvfrom(void *data, int *len,
+			struct sockaddr_in *addr, socklen_t *scklen)
+{
+	do {
+		*len = recvfrom(server.sockfd, data, MTU, 0,
+				(struct sockaddr *)addr, scklen);
+		if (*len == -1 &&
+		    errno != EAGAIN && errno != EINTR) {
+			tspslog(LOG_ERR, "Fail to read from server UDP socket");
+			exit(EXIT_FAILURE);
+		}
+	} while (*len <= 0);
+}
+
 void socket_sendto(void *data, int len, struct in_addr *addr, in_port_t port)
 {
 	struct sockaddr_in saddr;
