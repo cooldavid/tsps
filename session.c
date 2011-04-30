@@ -31,15 +31,10 @@ enum {
 };
 static struct client_session *v4hash[HASH_SIZE];
 static struct client_session *v6hash[HASH_SIZE];
-static pthread_mutex_t lock_v4hash = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t lock_v6hash = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t lock_session = PTHREAD_MUTEX_INITIALIZER;
 
-int initialize_session(void)
-{
-	return 0;
-}
-
-static int hash_v4(const struct sockaddr_in *addr)
+static int
+hash_v4(const struct sockaddr_in *addr)
 {
 	uint32_t key;
 
@@ -49,7 +44,8 @@ static int hash_v4(const struct sockaddr_in *addr)
 	return key;
 }
 
-static int _hash_v4(const struct in_addr *addr, uint16_t port)
+static int
+_hash_v4(const struct in_addr *addr, uint16_t port)
 {
 	uint32_t key;
 
@@ -59,7 +55,8 @@ static int _hash_v4(const struct in_addr *addr, uint16_t port)
 	return key;
 }
 
-static int hash_v6(const struct in6_addr *addr6)
+static int
+hash_v6(const struct in6_addr *addr6)
 {
 	uint32_t key;
 
@@ -71,56 +68,48 @@ static int hash_v6(const struct in6_addr *addr6)
 	return key;
 }
 
-struct client_session *
+static struct client_session *
 search_session_byv4(const struct sockaddr_in *addr)
 {
 	int key;
 	struct client_session *session;
 
 	key = hash_v4(addr);
-	pthread_mutex_lock(&lock_v4hash);
 	session = v4hash[key];
 	while (session) {
 		if (session->v4addr.s_addr == addr->sin_addr.s_addr &&
-		    session->v4port == ntohs(addr->sin_port)) {
-			pthread_mutex_unlock(&lock_v4hash);
+		    session->v4port == ntohs(addr->sin_port))
 			return session;
-		}
 		session = session->v4next;
 	}
-	pthread_mutex_unlock(&lock_v4hash);
 
 	return NULL;
 }
 
-struct client_session *
+static struct client_session *
 search_session_byv6(const struct in6_addr *addr6)
 {
 	int key;
 	struct client_session *session;
 
 	key = hash_v6(addr6);
-	pthread_mutex_lock(&lock_v6hash);
 	session = v6hash[key];
 	while (session) {
-		if (!memcmp(&session->v6addr, addr6, sizeof(*addr6))) {
-			pthread_mutex_unlock(&lock_v6hash);
+		if (!memcmp(&session->v6addr, addr6, sizeof(*addr6)))
 			return session;
-		}
 		session = session->v6next;
 	}
-	pthread_mutex_unlock(&lock_v6hash);
 
 	return NULL;
 }
 
-static void hashv4_add(struct client_session *newsess)
+static void
+hashv4_add(struct client_session *newsess)
 {
 	int key;
 	struct client_session *sess;
 
 	key = _hash_v4(&newsess->v4addr, newsess->v4port);
-	pthread_mutex_lock(&lock_v4hash);
 	sess = v4hash[key];
 	if (!sess) {
 		v4hash[key] = newsess;
@@ -130,16 +119,15 @@ static void hashv4_add(struct client_session *newsess)
 		sess->v4next = newsess;
 		newsess->v4priv = sess;
 	}
-	pthread_mutex_unlock(&lock_v4hash);
 }
 
-static void hashv6_add(struct client_session *newsess)
+static void
+hashv6_add(struct client_session *newsess)
 {
 	int key;
 	struct client_session *sess;
 
 	key = hash_v6(&newsess->v6addr);
-	pthread_mutex_lock(&lock_v6hash);
 	sess = v6hash[key];
 	if (!sess) {
 		v6hash[key] = newsess;
@@ -149,10 +137,9 @@ static void hashv6_add(struct client_session *newsess)
 		sess->v6next = newsess;
 		newsess->v6priv = sess;
 	}
-	pthread_mutex_unlock(&lock_v6hash);
 }
 
-struct client_session *
+static struct client_session *
 create_session(const struct sockaddr_in *addr)
 {
 	struct client_session *session;
@@ -170,10 +157,39 @@ create_session(const struct sockaddr_in *addr)
 	return session;
 }
 
-void session_set_v6addr(struct client_session *session, struct in6_addr *addr6)
+struct client_session *
+get_session_byv4(const struct sockaddr_in *addr)
 {
+	struct client_session *session;
+
+	pthread_mutex_lock(&lock_session);
+	session = search_session_byv4(addr);
+	if (!session)
+		session = create_session(addr);
+	++(session->refcnt);
+	pthread_mutex_unlock(&lock_session);
+	return session;
+}
+
+struct client_session *
+get_session_byv6(const struct in6_addr *addr6)
+{
+	struct client_session *session;
+
+	pthread_mutex_lock(&lock_session);
+	session = search_session_byv6(addr6);
+	++(session->refcnt);
+	pthread_mutex_unlock(&lock_session);
+	return session;
+}
+
+void
+session_set_v6addr(struct client_session *session, struct in6_addr *addr6)
+{
+	pthread_mutex_lock(&lock_session);
 	memcpy(&session->v6addr, addr6, sizeof(*addr6));
 	hashv6_add(session);
+	pthread_mutex_unlock(&lock_session);
 }
 
 static void
@@ -182,7 +198,6 @@ remove_v4session(struct client_session *session)
 	int key;
 
 	key = _hash_v4(&session->v4addr, session->v4port);
-	pthread_mutex_lock(&lock_v4hash);
 	if (session->v4priv) {
 		session->v4priv->v4next = session->v4next;
 		if (session->v4next)
@@ -190,7 +205,6 @@ remove_v4session(struct client_session *session)
 	} else {
 		v4hash[key] = session->v4next;
 	}
-	pthread_mutex_unlock(&lock_v4hash);
 }
 
 static void
@@ -199,7 +213,6 @@ remove_v6session(struct client_session *session)
 	int key;
 
 	key = hash_v6(&session->v6addr);
-	pthread_mutex_lock(&lock_v6hash);
 	if (session->v6priv) {
 		session->v6priv->v6next = session->v6next;
 		if (session->v6next)
@@ -207,19 +220,39 @@ remove_v6session(struct client_session *session)
 	} else {
 		v6hash[key] = session->v6next;
 	}
-	pthread_mutex_unlock(&lock_v6hash);
 }
 
-void kill_session(struct client_session *session)
+static void
+remove_session(struct client_session *session)
 {
 	static char zeros[32];
 
-	if (!session)
-		return;
-
 	remove_v4session(session);
-	if(memcmp(&session->v6addr, zeros, sizeof(struct in6_addr)))
+	if (memcmp(&session->v6addr, zeros, sizeof(struct in6_addr)))
 		remove_v6session(session);
-	free(session);
+}
+
+void
+put_session(struct client_session *session)
+{
+	pthread_mutex_lock(&lock_session);
+	if (!(--(session->refcnt)) && session->status == STAT_DESTROY) {
+		remove_session(session);
+		free(session);
+	}
+	pthread_mutex_unlock(&lock_session);
+}
+
+void
+kill_session(struct client_session *session)
+{
+	pthread_mutex_lock(&lock_session);
+	if (!(--(session->refcnt))) {
+		remove_session(session);
+		free(session);
+	} else {
+		session->status = STAT_DESTROY;
+	}
+	pthread_mutex_unlock(&lock_session);
 }
 

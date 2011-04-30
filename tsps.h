@@ -38,6 +38,7 @@ struct client_session {
 	int			status;
 	int			mode;
 	int			keepalive;
+	int			refcnt;
 	struct client_session	*v4next;
 	struct client_session	*v4priv;
 	struct client_session	*v6next;
@@ -50,7 +51,8 @@ enum {
 	STAT_AUTH_PLAIN,
 	STAT_CREATE,
 	STAT_CONFIRM,
-	STAT_ESTAB
+	STAT_ESTAB,
+	STAT_DESTROY
 };
 
 struct tspserver {
@@ -103,13 +105,21 @@ void socket_recvfrom(void *data, int *len,
 void socket_sendto(void *data, int len,
 			struct in_addr *addr, in_port_t port);
 
-/* session.c */
-int initialize_session(void);
-struct client_session *search_session_byv4(const struct sockaddr_in *addr);
-struct client_session *search_session_byv6(const struct in6_addr *addr6);
-struct client_session *create_session(const struct sockaddr_in *addr);
-void session_set_v6addr(struct client_session *session, struct in6_addr *addr6);
+/* session.c
+ *
+ * One of the put_session or kill_session must be called after
+ * got session from get_session_byv[64].
+ *
+ * get_session_byv4 automatically creates session if not exist.
+ *
+ * session_set_v6_addr must be called between get_session_* and
+ * {put|kill}_session.
+ */
+struct client_session *get_session_byv4(const struct sockaddr_in *addr);
+struct client_session *get_session_byv6(const struct in6_addr *addr6);
+void put_session(struct client_session *session);
 void kill_session(struct client_session *session);
+void session_set_v6addr(struct client_session *session, struct in6_addr *addr6);
 
 /* queue.c */
 int queue_tun_isfull(void);

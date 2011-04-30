@@ -203,11 +203,6 @@ int main(int argc, char *argv[], char *envv[])
 		return EXIT_FAILURE;
 	}
 
-	if (initialize_session()) {
-		fprintf(stderr, "Failed to initialize session table\n");
-		return EXIT_FAILURE;
-	}
-
 	if (create_threads()) {
 		fprintf(stderr, "Failed to create threads\n");
 		return EXIT_FAILURE;

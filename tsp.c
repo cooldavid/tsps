@@ -47,6 +47,7 @@ void process_tun_packet(const char *data, ssize_t len)
 	struct tun_pi *pi = (struct tun_pi *)data;
 	struct ip6_hdr *v6hdr = (struct ip6_hdr *)(data + sizeof(struct tun_pi));
 	struct client_session *session;
+	char addrbuf[64];
 
 	if (len < (sizeof (struct tun_pi) + sizeof (struct ip6_hdr)))
 		return;
@@ -56,12 +57,17 @@ void process_tun_packet(const char *data, ssize_t len)
 	/*
 	 * NOTE: Handle broadcast/multicast destination?
 	 */
-	session = search_session_byv6(&v6hdr->ip6_dst);
-	if (!session)
+	session = get_session_byv6(&v6hdr->ip6_dst);
+	if (!session) {
+		tspslog(LOG_INFO, "Destination IP %s not in the session",
+				inet_ntop(AF_INET6, &v6hdr->ip6_dst,
+					addrbuf, sizeof(addrbuf)));
 		return;
+	}
 
 	socket_sendto(v6hdr, len - sizeof(struct tun_pi),
 			&session->v4addr, session->v4port);
+	put_session(session);
 }
 
 static void tsp_reply(struct client_session *session,
@@ -82,11 +88,8 @@ static void tsp_version_cap(struct client_session *session,
 	static const char *verpfx = "VERSION=2.0.";
 	char cap[256];
 
-	if (strncasecmp(tsp->data, verpfx, strlen(verpfx))) {
-		tsp_reply(session, tsp, "302 Unsupported client version\r\n");
-		kill_session(session);
-		return;
-	}
+	if (strncasecmp(tsp->data, verpfx, strlen(verpfx)))
+		goto vercap_error;
 
 	strcpy(cap, "CAPABILITY");
 	strcat(cap, " TUNNEL=V6UDPV4");
@@ -99,6 +102,12 @@ static void tsp_version_cap(struct client_session *session,
 	strcat(cap, "\r\n");
 	tsp_reply(session, tsp, cap);
 	session->status = STAT_AUTH;
+	put_session(session);
+	return;
+
+vercap_error:
+	tsp_reply(session, tsp, "302 Unsupported client version\r\n");
+	kill_session(session);
 }
 
 static void tsp_auth_plain(struct client_session *session,
@@ -119,11 +128,13 @@ static void tsp_auth_plain(struct client_session *session,
 	if (!pass || (dlen < (strlen(user) + strlen(pass) + 4)))
 		goto auth_fail;
 
-	if (!login_plain(session, user, pass)) {
-		tsp_reply(session, tsp, authok);
-		session->status = STAT_CREATE;
-		return;
-	}
+	if (login_plain(session, user, pass))
+		goto auth_fail;
+
+	tsp_reply(session, tsp, authok);
+	session->status = STAT_CREATE;
+	put_session(session);
+	return;
 
 auth_fail:
 	tsp_reply(session, tsp, authfail);
@@ -152,6 +163,7 @@ static void tsp_auth(struct client_session *session,
 			login_anonymous(session);
 			session->mode = ANONYMOUS_MODE;
 			session->status = STAT_CREATE;
+			put_session(session);
 			return;
 		}
 	}
@@ -161,6 +173,7 @@ static void tsp_auth(struct client_session *session,
 			tsp_reply(session, tsp, "");
 			session->mode = AUTHENTICATED_MODE;
 			session->status = STAT_AUTH_PLAIN;
+			put_session(session);
 			return;
 		}
 	}
@@ -234,6 +247,7 @@ static void tsp_create_tunnel(struct client_session *session,
 	dbg_tsp("Create tunnel check passed");
 	tsp_reply(session, tsp, build_tunnel_offer(session));
 	session->status = STAT_CONFIRM;
+	put_session(session);
 	return;
 
 create_error:
@@ -259,6 +273,7 @@ static void tsp_confirm_tunnel(struct client_session *session,
 
 	tsp_reply(session, tsp, "");
 	session->status = STAT_ESTAB;
+	put_session(session);
 	return;
 
 ack_error:
@@ -292,6 +307,7 @@ static void tsp_data(struct client_session *session,
 	}
 
 	tun_write(tsp, dlen);
+	put_session(session);
 }
 
 void process_sock_packet(const struct sockaddr_in *client,
@@ -303,9 +319,7 @@ void process_sock_packet(const struct sockaddr_in *client,
 	if (len <= sizeof(struct tsphdr))
 		return;
 
-	session = search_session_byv4(client);
-	if (!session)
-		session = create_session(client);
+	session = get_session_byv4(client);
 	if ((tsphdr->seq & 0xF0000000u) == 0xF0000000u) {
 		data[len] ='\0';
 		len -= sizeof(struct tsphdr);
