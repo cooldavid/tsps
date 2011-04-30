@@ -46,8 +46,16 @@ static int tun_open(void)
 
 #ifdef linux
 #include <linux/if_tun.h>
-#include <linux/ipv6.h>
-#include <linux/sockios.h>
+/*
+ * struct in6_ifreq defined in <linux/ipv6.h>
+ * Putted it here because the redefinition conflict.
+ */
+struct in6_ifreq {
+	struct in6_addr	ifr6_addr;
+	__u32		ifr6_prefixlen;
+	int		ifr6_ifindex; 
+};
+
 static int tun_alloc(void)
 {
 	struct ifreq ifr;
