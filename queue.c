@@ -133,6 +133,7 @@ void drop_tun(void)
 	static char dummy[MTU];
 	ssize_t length;
 
+	tspslog(LOG_WARNING, "Dropped packet from TUN interface");
 	tun_read(dummy, &length);
 }
 
@@ -141,6 +142,7 @@ void drop_sock(void)
 	static char dummy[MTU];
 	ssize_t length;
 
+	tspslog(LOG_WARNING, "Dropped packet from UDP socket");
 	socket_recvfrom(dummy, &length, NULL, NULL);
 }
 
