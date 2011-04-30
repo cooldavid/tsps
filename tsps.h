@@ -59,6 +59,8 @@ struct tspserver {
 	char			tundev[32];
 	struct sockaddr_in	v4sockaddr;
 	struct sockaddr_in6	v6sockaddr;
+	struct in6_addr		v6prefix;
+	struct in6_addr		v6postfixmask;
 	uint8_t			v6prefixlen;
 	uint8_t			mode;
 	int			tunfd;

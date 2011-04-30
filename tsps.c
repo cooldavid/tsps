@@ -140,8 +140,7 @@ static int check_server_configure(void)
 {
 	static char zeros[32];
 	int i, rplen = 128 - server.v6prefixlen;
-	const uint8_t *addr6;
-	uint8_t b, m;
+	uint8_t m, *mask6;
 
 	if (!memcmp(&server.v4sockaddr.sin_addr, zeros, sizeof(struct in_addr))) {
 		fprintf(stderr, "Must specify IPv4_bind_address\n");
@@ -153,22 +152,21 @@ static int check_server_configure(void)
 		return -1; 
 	}
 
-	addr6 = server.v6sockaddr.sin6_addr.s6_addr;
-	for (i = 0; (i * 8) <= (rplen - 8); ++i) {
-		if (addr6[15 - i]) {
-			fprintf(stderr, "All bits should be zero in IPv6_prefix tail\n");
-			return -1;
-		}
-	}
+	bzero(&server.v6postfixmask, sizeof(struct in6_addr));
+	mask6 = server.v6postfixmask.s6_addr;
+	for (i = 0; (i * 8) <= (rplen - 8); ++i)
+		mask6[15 - i] = 0xFFu;
 	if ((i * 8) < rplen) {
 		rplen -= i * 8;
-		b = addr6[15 - i];
 		m = (1 << rplen);
 		m -= 1;
-		if (b & m) {
-			fprintf(stderr, "All bits should be zero in IPv6_prefix tail\n");
-			return -1;
-		}
+		mask6[15 -i] = m;
+	}
+
+	for (i = 0; i < 4; ++i) {
+		server.v6prefix.s6_addr32[i] =
+			server.v6sockaddr.sin6_addr.s6_addr32[i] &
+				~(server.v6postfixmask.s6_addr32[i]);
 	}
 
 	return 0;

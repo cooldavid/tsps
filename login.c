@@ -35,11 +35,14 @@ int login_plain(struct client_session *session, const char *user, const char *pa
 void login_anonymous(struct client_session *session)
 {
 	struct in6_addr v6addr;
+	int i;
 
-	memcpy(&v6addr, &server.v6sockaddr.sin6_addr, sizeof(v6addr));
-	v6addr.s6_addr16[5] = (session->v4addr.s_addr >> 16) & 0xFFFF;
-	v6addr.s6_addr16[6] = (session->v4addr.s_addr) & 0xFFFF;
-	v6addr.s6_addr16[7] = session->v4port;
+	memcpy(&v6addr, &server.v6prefix, sizeof(v6addr));
+	for (i = 0; i < 3; ++i)
+		v6addr.s6_addr32[i] |= server.v6postfixmask.s6_addr32[i];
+	v6addr.s6_addr16[5] = (session->v4addr.s_addr) & 0xFFFFu;
+	v6addr.s6_addr16[6] = (session->v4addr.s_addr >> 16) & 0xFFFFu;
+	v6addr.s6_addr16[7] = htons(session->v4port);
 	session_set_v6addr(session, &v6addr);
 }
 
