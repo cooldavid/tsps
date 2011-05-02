@@ -1,6 +1,5 @@
 
 TODO:
- * Native routing between connected clients
  * SQL authentication backend
  * MD5-DIGEST authentication support
  * Basic QoS Support

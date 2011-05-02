@@ -31,6 +31,7 @@
 #define DEBUG_THREAD
 #define DEBUG_TSP
 #define DEBUG_XML
+#define DEBUG_KEEPALIVE
 #endif
 
 #define DEBUG_FUNCTION(dbgname) \

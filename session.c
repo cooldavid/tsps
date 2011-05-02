@@ -188,7 +188,8 @@ get_session_byv6(const struct in6_addr *addr6)
 
 	pthread_mutex_lock(&lock_session);
 	session = search_session_byv6(addr6);
-	++(session->refcnt);
+	if (session)
+		++(session->refcnt);
 	pthread_mutex_unlock(&lock_session);
 	return session;
 }
