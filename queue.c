@@ -34,7 +34,7 @@ enum {
 	QUEUE_SIZE = 32,
 };
 static char queue_tun[QUEUE_SIZE][MTU];
-static char queue_sock[QUEUE_SIZE][MTU];
+static char queue_sock[QUEUE_SIZE][PHDRSZ + MTU];
 static ssize_t length_tun[QUEUE_SIZE];
 static ssize_t length_sock[QUEUE_SIZE];
 static struct sockaddr_in client_addr[QUEUE_SIZE];
@@ -123,7 +123,7 @@ void enqueue_sock(void)
 	freeptr_sock %= QUEUE_SIZE;
 	pthread_mutex_unlock(&lock_sockqueue);
 
-	socket_recvfrom(queue_sock[ptr], &length_sock[ptr],
+	socket_recvfrom(&queue_sock[ptr][PHDRSZ], &length_sock[ptr],
 			&client_addr[ptr], &socklen);
 	pthread_cond_signal(&cond_sockqueue);
 }
@@ -175,7 +175,7 @@ void dequeue_sock(void)
 	curptr_sock %= QUEUE_SIZE;
 	pthread_mutex_unlock(&lock_sockqueue);
 
-	process_sock_packet(&client_addr[ptr], queue_sock[ptr], length_sock[ptr]);
+	process_sock_packet(&client_addr[ptr], &queue_sock[ptr][PHDRSZ], length_sock[ptr]);
 }
 
 void sleep_on_tun_empty(int seconds)

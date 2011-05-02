@@ -169,15 +169,21 @@ void tun_read(void *data, int *len)
 
 void tun_write(void *data, int len)
 {
-	static char buf[MTU];
-	struct tun_pi *pi = (struct tun_pi *)buf;
+	struct tun_pi *pi;
 	int rc;
+
+	if (sizeof(struct tun_pi) > PHDRSZ) {
+		tspslog(LOG_ERR, "Preserved header space not enough");
+		exit(EXIT_FAILURE);
+	} else {
+		pi = (struct tun_pi *)
+			((uint8_t *)data - sizeof(struct tun_pi));
+	}
 
 	pi->flags = 0;
 	pi->proto = htons(ETH_P_IPV6);
-	memcpy(buf + sizeof(struct tun_pi), data, len);
 	do {
-		rc = write(server.tunfd, buf, sizeof(struct tun_pi) + len);
+		rc = write(server.tunfd, pi, sizeof(struct tun_pi) + len);
 		if (rc == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
 			tspslog(LOG_ERR, "Fail to write to server tun interface");

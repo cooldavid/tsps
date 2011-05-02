@@ -94,6 +94,7 @@ enum {
 
 enum {
 	MTU = 1500,
+	PHDRSZ = 16,
 	SLEEP_GAP = 1,
 };
 
