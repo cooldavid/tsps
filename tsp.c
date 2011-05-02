@@ -26,11 +26,8 @@
 #include <strings.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/ip6.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #ifdef linux
 #include <linux/if_tun.h>
@@ -67,6 +64,7 @@ void process_tun_packet(const char *data, ssize_t len)
 
 	socket_sendto(v6hdr, len - sizeof(struct tun_pi),
 			&session->v4addr, session->v4port);
+	time(&session->lastsnd);
 	put_session(session);
 }
 
@@ -273,7 +271,11 @@ static void tsp_confirm_tunnel(struct client_session *session,
 
 	tsp_reply(session, tsp, "");
 	session->status = STAT_ESTAB;
+	insert_keepalive(session);
 	put_session(session);
+	tspslog(LOG_INFO, "Client %s:%u connected.",
+			inet_ntoa(session->v4addr),
+			ntohs(session->v4port));
 	return;
 
 ack_error:
@@ -349,10 +351,6 @@ void process_sock_packet(const struct sockaddr_in *client,
 		case STAT_CONFIRM:
 			dbg_tsp("STAT_CONFIRM");
 			tsp_confirm_tunnel(session, tsphdr, len);
-			if (session->status == STAT_ESTAB)
-				tspslog(LOG_INFO, "Client %s:%u connected.",
-						inet_ntoa(client->sin_addr),
-						ntohs(client->sin_port));
 			break;
 		case STAT_ESTAB:
 			dbg_tsp("STAT_ESTAB");
@@ -360,10 +358,14 @@ void process_sock_packet(const struct sockaddr_in *client,
 			break;
 		}
 	} else {
-		if (session->status == STAT_ESTAB)
+		if (session->status == STAT_ESTAB) {
+			time(&session->lastrcv);
 			tsp_data(session, tsphdr, len);
-		else
+		} else {
+			tsphdr->seq = 0xFFFFFFFFu;
+			tsphdr->timestamp = (time(NULL) & 0xFFFFFFFFu);
 			tsp_disconnect(session, tsphdr, len);
+		}
 	}
 }
 

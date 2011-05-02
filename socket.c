@@ -24,12 +24,11 @@
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 int bind_socket(void)
 {
@@ -52,7 +51,7 @@ int bind_socket(void)
 }
 
 void socket_recvfrom(void *data, int *len,
-			struct sockaddr_in *addr, socklen_t *scklen)
+			const struct sockaddr_in *addr, socklen_t *scklen)
 {
 	do {
 		*len = recvfrom(server.sockfd, data, MTU, 0,
@@ -65,7 +64,7 @@ void socket_recvfrom(void *data, int *len,
 	} while (*len <= 0);
 }
 
-void socket_sendto(void *data, int len, struct in_addr *addr, in_port_t port)
+void socket_sendto(void *data, int len, const struct in_addr *addr, in_port_t port)
 {
 	struct sockaddr_in saddr;
 	socklen_t scklen = sizeof(saddr);
@@ -82,5 +81,87 @@ void socket_sendto(void *data, int len, struct in_addr *addr, in_port_t port)
 			break;
 		}
 	} while (rc <= 0);
+}
+
+static int icmp6_cksum(const struct ip6_hdr *ip6, const struct icmp6_hdr *icp,
+        u_int len)
+{
+        size_t i;
+        register const u_int16_t *sp;
+        u_int32_t sum;
+        union {
+                struct {
+                        struct in6_addr ph_src;
+                        struct in6_addr ph_dst;
+                        u_int32_t       ph_len;
+                        u_int8_t        ph_zero[3];
+                        u_int8_t        ph_nxt;
+                } ph;
+                u_int16_t pa[20];
+        } phu;
+
+        /* pseudo-header */
+        memset(&phu, 0, sizeof(phu));
+        phu.ph.ph_src = ip6->ip6_src;
+        phu.ph.ph_dst = ip6->ip6_dst;
+        phu.ph.ph_len = htonl(len);
+        phu.ph.ph_nxt = IPPROTO_ICMPV6;
+
+        sum = 0;
+        for (i = 0; i < sizeof(phu.pa) / sizeof(phu.pa[0]); i++)
+                sum += phu.pa[i];
+
+        sp = (const u_int16_t *)icp;
+
+        for (i = 0; i < (len & ~1); i += 2)
+                sum += *sp++;
+
+        if (len & 1)
+                sum += htons((*(const u_int8_t *)sp) << 8);
+
+        while (sum > 0xffff)
+                sum = (sum & 0xffff) + (sum >> 16);
+        sum = ~sum & 0xffff;
+
+        return (sum);
+}
+
+void build_icmp6(uint8_t icmp6buf[IP6LEN], const struct in6_addr *addr6)
+{
+	struct ip6_hdr *ip6hdr = (struct ip6_hdr *)icmp6buf;
+	struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(ip6hdr + 1);
+	uint8_t *icmp6payload = (uint8_t *)(icmp6hdr + 1);
+	int i;
+
+	bzero(icmp6buf, IP6LEN);
+	ip6hdr->ip6_vfc = 0x60;
+	ip6hdr->ip6_plen = htons(ICMP6LEN);
+	ip6hdr->ip6_hlim = 0x5u;
+	ip6hdr->ip6_nxt = IPPROTO_ICMPV6;
+	ip6hdr->ip6_src = server.v6sockaddr.sin6_addr;
+	ip6hdr->ip6_dst = *addr6;
+
+	icmp6hdr->icmp6_type = 128u;
+	icmp6hdr->icmp6_id = htons(time(NULL) & 0xFFFF);
+	icmp6hdr->icmp6_seq = htons(1);
+
+	for (i = 0; i < PAYLOADLEN; ++i)
+		icmp6payload[i] = 0xCDu;
+
+	icmp6hdr->icmp6_cksum = icmp6_cksum(ip6hdr, icmp6hdr, ICMP6LEN);
+}
+
+void socket_ping(const struct in_addr *addr, in_port_t port, uint8_t icmp6buf[IP6LEN])
+{
+	struct ip6_hdr *ip6hdr = (struct ip6_hdr *)icmp6buf;
+	struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(ip6hdr + 1);
+	uint16_t seq;
+	uint32_t sum;
+
+	seq = ntohs(icmp6hdr->icmp6_seq);
+	icmp6hdr->icmp6_seq = htons(++seq);
+	sum = ~(icmp6hdr->icmp6_cksum) & 0xffff;
+	icmp6hdr->icmp6_cksum = ~(sum + htons(1)) & 0xffff;
+	socket_sendto(icmp6buf, IP6LEN, addr, port);
 }
 

@@ -38,11 +38,12 @@ void *thread_tun(void *arg)
 {
 	while (1) {
 		dbg_thread("Waiting for tun input");
-		block_on_tun_empty();
+		sleep_on_tun_empty(SLEEP_GAP);
 		while (!queue_tun_isempty()) {
 			dbg_thread("Processing tun input");
 			dequeue_tun();
 		}
+		do_keepalive();
 	}
 	return NULL;
 }
@@ -51,7 +52,7 @@ void *thread_sock(void *arg)
 {
 	while (1) {
 		dbg_thread("Waiting for sock input");
-		block_on_sock_empty();
+		sleep_on_sock_empty(SLEEP_GAP);
 		while (!queue_sock_isempty()) {
 			dbg_thread("Processing sock input");
 			dequeue_sock();

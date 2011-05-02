@@ -27,8 +27,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
 #include <stdint.h>
 #include <syslog.h>
+
+struct keepalive_info;
+#define PAYLOADLEN 8
+#define ICMP6LEN (sizeof(struct icmp6_hdr) + PAYLOADLEN)
+#define IP6LEN (sizeof(struct ip6_hdr) + ICMP6LEN)
 
 struct client_session {
 	struct in_addr		nataddr;
@@ -39,6 +46,10 @@ struct client_session {
 	int			mode;
 	int			keepalive;
 	int			refcnt;
+	time_t			lastrcv;
+	time_t			lastsnd;
+	struct keepalive_info	*kai;
+	uint8_t			kapkt[IP6LEN];
 	struct client_session	*v4next;
 	struct client_session	*v4priv;
 	struct client_session	*v6next;
@@ -53,6 +64,13 @@ enum {
 	STAT_CONFIRM,
 	STAT_ESTAB,
 	STAT_DESTROY
+};
+
+struct keepalive_info {
+	time_t			expire;
+	struct client_session	*session;
+	struct keepalive_info	*next;
+	struct keepalive_info	*priv;
 };
 
 struct tspserver {
@@ -76,6 +94,7 @@ enum {
 
 enum {
 	MTU = 1500,
+	SLEEP_GAP = 1,
 };
 
 struct tunnel_request {
@@ -103,9 +122,12 @@ void tun_write(void *data, int len);
 /* socket.c */
 int bind_socket(void);
 void socket_recvfrom(void *data, int *len,
-			struct sockaddr_in *addr, socklen_t *scklen);
+			const struct sockaddr_in *addr, socklen_t *scklen);
 void socket_sendto(void *data, int len,
-			struct in_addr *addr, in_port_t port);
+			const struct in_addr *addr, in_port_t port);
+void socket_ping(const struct in_addr *addr, in_port_t port,
+		uint8_t icmp6buf[IP6LEN]);
+void build_icmp6(uint8_t icmp6buf[IP6LEN], const struct in6_addr *addr6);
 
 /* session.c
  *
@@ -117,11 +139,13 @@ void socket_sendto(void *data, int len,
  * session_set_v6_addr must be called between get_session_* and
  * {put|kill}_session.
  */
+struct client_session *get_session(struct client_session *session);
 struct client_session *get_session_byv4(const struct sockaddr_in *addr);
 struct client_session *get_session_byv6(const struct in6_addr *addr6);
 void put_session(struct client_session *session);
 void kill_session(struct client_session *session);
 void session_set_v6addr(struct client_session *session, struct in6_addr *addr6);
+void timeout_session(struct client_session *session);
 
 /* queue.c */
 int queue_tun_isfull(void);
@@ -134,8 +158,8 @@ void drop_tun(void);
 void drop_sock(void);
 void dequeue_tun(void);
 void dequeue_sock(void);
-void block_on_tun_empty(void);
-void block_on_sock_empty(void);
+void sleep_on_tun_empty(int seconds);
+void sleep_on_sock_empty(int seconds);
 
 /* threads.c */
 int create_threads(void);
@@ -144,6 +168,11 @@ void main_loop(void);
 /* tsp.c */
 void process_tun_packet(const char *data, ssize_t len);
 void process_sock_packet(const struct sockaddr_in *client, char *data, ssize_t len);
+
+/* keepalive.c */
+void insert_keepalive(struct client_session *session);
+void remove_keepalive(struct client_session *session);
+void do_keepalive(void);
 
 /* login.c */
 int login_plain(struct client_session *session, const char *user, const char *pass);
@@ -161,5 +190,6 @@ void tspslog(int prio, const char *msg, ...);
 void dbg_thread(const char *dbgmsg, ...);
 void dbg_tsp(const char *dbgmsg, ...);
 void dbg_xml(const char *dbgmsg, ...);
+void dbg_keepalive(const char *dbgmsg, ...);
 
 #endif

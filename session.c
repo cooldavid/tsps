@@ -158,6 +158,16 @@ create_session(const struct sockaddr_in *addr)
 }
 
 struct client_session *
+get_session(struct client_session *session)
+{
+	pthread_mutex_lock(&lock_session);
+	if (session->status != STAT_DESTROY)
+		++(session->refcnt);
+	pthread_mutex_unlock(&lock_session);
+	return session;
+}
+
+struct client_session *
 get_session_byv4(const struct sockaddr_in *addr)
 {
 	struct client_session *session;
@@ -238,6 +248,7 @@ put_session(struct client_session *session)
 	pthread_mutex_lock(&lock_session);
 	if (!(--(session->refcnt)) && session->status == STAT_DESTROY) {
 		remove_session(session);
+		remove_keepalive(session);
 		free(session);
 	}
 	pthread_mutex_unlock(&lock_session);
@@ -245,6 +256,20 @@ put_session(struct client_session *session)
 
 void
 kill_session(struct client_session *session)
+{
+	pthread_mutex_lock(&lock_session);
+	if (!(--(session->refcnt))) {
+		remove_session(session);
+		remove_keepalive(session);
+		free(session);
+	} else {
+		session->status = STAT_DESTROY;
+	}
+	pthread_mutex_unlock(&lock_session);
+}
+
+void
+timeout_session(struct client_session *session)
 {
 	pthread_mutex_lock(&lock_session);
 	if (!(--(session->refcnt))) {

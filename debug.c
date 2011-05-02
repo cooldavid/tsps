@@ -38,7 +38,7 @@
 	{ \
 		va_list ap; \
 		int len = strlen(dbgmsg); \
-		char *fmt = calloc(1, len + 16); \
+		char *fmt = calloc(1, len + 256); \
 		va_start(ap, dbgmsg); \
 		if (!fmt) \
 			return; \
@@ -66,5 +66,11 @@ NULL_FUNCTION(tsp)
 DEBUG_FUNCTION(xml)
 #else
 NULL_FUNCTION(xml)
+#endif
+
+#ifdef DEBUG_KEEPALIVE
+DEBUG_FUNCTION(keepalive)
+#else
+NULL_FUNCTION(keepalive)
 #endif
 

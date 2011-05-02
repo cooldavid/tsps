@@ -178,38 +178,42 @@ void dequeue_sock(void)
 	process_sock_packet(&client_addr[ptr], queue_sock[ptr], length_sock[ptr]);
 }
 
-void block_on_tun_empty(void)
+void sleep_on_tun_empty(int seconds)
 {
 	struct timespec ts;
-	int rc;
+	int rc = 0;
 
 	pthread_mutex_lock(&lock_tunqueue);
-	while (_queue_tun_isempty()) {
-		clock_gettime(CLOCK_REALTIME, &ts);
-		ts.tv_sec += 1;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec += seconds;
+	while (rc != ETIMEDOUT) {
 		rc = pthread_cond_timedwait(&cond_tunqueue, &lock_tunqueue, &ts);
 		if (rc != 0 && rc != ETIMEDOUT) {
 			tspslog(LOG_ERR, "Conditional wait error");
 			exit(EXIT_FAILURE);
 		}
+		if (!_queue_tun_isempty())
+			break;
 	}
 	pthread_mutex_unlock(&lock_tunqueue);
 }
 
-void block_on_sock_empty(void)
+void sleep_on_sock_empty(int seconds)
 {
 	struct timespec ts;
-	int rc;
+	int rc = 0;
 
 	pthread_mutex_lock(&lock_sockqueue);
-	while (_queue_sock_isempty()) {
-		clock_gettime(CLOCK_REALTIME, &ts);
-		ts.tv_sec += 1;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec += seconds;
+	while (rc != ETIMEDOUT) {
 		rc = pthread_cond_timedwait(&cond_sockqueue, &lock_sockqueue, &ts);
 		if (rc != 0 && rc != ETIMEDOUT) {
 			tspslog(LOG_ERR, "Conditional wait error");
 			exit(EXIT_FAILURE);
 		}
+		if (!_queue_sock_isempty())
+			break;
 	}
 	pthread_mutex_unlock(&lock_sockqueue);
 }
