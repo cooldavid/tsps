@@ -72,8 +72,8 @@ void insert_keepalive(struct client_session *session)
 	kai->expire = time(NULL) + session->keepalive;
 	kai->session = session;
 	session->kai = kai;
+	build_icmp6(kai->kapkt, &session->v6addr);
 	insert_hash(kai);
-	build_icmp6(session->kapkt, &session->v6addr);
 
 	dbg_keepalive("Hooked keepalive info for session: %s:%u (%p)",
 			inet_ntoa(session->v4addr),
@@ -128,6 +128,9 @@ static void _do_keepalive(time_t expire)
 	struct keepalive_info *kai;
 	struct client_session *session;
 	time_t last;
+	struct in_addr ip;
+	in_port_t port;
+	uint32_t keepalive;
 
 	while ((kai = pop_keepalive(expire)) != NULL) {
 		pthread_mutex_lock(&lock_hook);
@@ -178,18 +181,24 @@ static void _do_keepalive(time_t expire)
 		}
 
 		/*
+		 * Copy IP/PORT from session before exiting hook lock
+		 */
+		ip = session->v4addr;
+		port = session->v4port;
+		keepalive = session->keepalive;
+
+		pthread_mutex_unlock(&lock_hook);
+
+		/*
 		 * Send ICMPv6 ping over UDPv4 socket
 		 */
 		dbg_keepalive("Sending keepalive at %u (%p)",
 				time(NULL), kai);
-		socket_ping(&session->v4addr, session->v4port, session->kapkt);
-		kai->expire = time(NULL) + session->keepalive;
+		socket_ping(&ip, port, kai->kapkt);
+		kai->expire = time(NULL) + keepalive;
 		insert_hash(kai);
 		dbg_keepalive("Keepalive scheduled %u seconds later (%p)",
 				kai->expire - time(NULL), kai);
-
-		pthread_mutex_unlock(&lock_hook);
-
 	}
 
 }

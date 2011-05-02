@@ -49,7 +49,6 @@ struct client_session {
 	time_t			lastrcv;
 	time_t			lastsnd;
 	struct keepalive_info	*kai;
-	uint8_t			kapkt[IP6LEN];
 	struct client_session	*v4next;
 	struct client_session	*v4priv;
 	struct client_session	*v6next;
@@ -68,6 +67,7 @@ enum {
 
 struct keepalive_info {
 	time_t			expire;
+	uint8_t			kapkt[IP6LEN];
 	struct client_session	*session;
 	struct keepalive_info	*next;
 	struct keepalive_info	*priv;
