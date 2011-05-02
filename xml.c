@@ -61,6 +61,8 @@ static void create_tunnel_start(void *data, const char *el, const char **attr)
 			val = attr[i + 1];
 			if (!strcasecmp(key, "interval")) {
 				req->keepalive = strtol(val, NULL, 10);
+				if (req->keepalive < 5)
+					req->keepalive = 5;
 				break;
 			}
 		}
