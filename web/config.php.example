@@ -1,0 +1,10 @@
+<?php
+	$mysql_server = ":/var/run/mysqld/mysqld.sock";
+	$mysql_db = "dbname";
+	$mysql_user = "username";
+	$mysql_pass = "password";
+	$ServerName = "CDPA Gateway6 Server";
+	$AdminEMail = "root@cdpa.nsysu.edu.tw";
+	$sendmail_path = "/usr/sbin/sendmail";
+?>
+
