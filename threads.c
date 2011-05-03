@@ -64,11 +64,13 @@ void *thread_sock(void *arg)
 int create_threads(void)
 {
 	if (pthread_create(&ttun, NULL, thread_tun, NULL)) {
-		perror("Create TUN process thread");
+		tspslog(LOG_ERR, "Failed to create TUN process thread: %s",
+			strerror(errno));
 		return -1;
 	}
 	if (pthread_create(&tsock, NULL, thread_sock, NULL)) {
-		perror("Create socket process thread");
+		tspslog(LOG_ERR, "Failed to create socket process thread: %s",
+			strerror(errno));
 		return -1;
 	}
 	return 0;

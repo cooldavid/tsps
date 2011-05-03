@@ -41,7 +41,7 @@ static int parse_args(int argc, char *argv[])
 	server.mode = UNDEFINED_MODE;
 	server.v4sockaddr.sin_port = htons(3653);
 
-	while ((opt = getopt(argc, argv, "t:b:p:n:NAHh:u:P:d:")) != -1) {
+	while ((opt = getopt(argc, argv, "t:b:p:n:NAHh:u:P:d:D")) != -1) {
 		switch (opt) {
 		case 't':
 			strncpy(server.tundev, optarg, 31);
@@ -132,6 +132,9 @@ static int parse_args(int argc, char *argv[])
 			server.dbname = malloc(len + 1);
 			strcpy(server.dbname, optarg);
 			break;
+		case 'D':
+			server.debug = 1;
+			break;
 		default:
 
 			return -1;
@@ -148,7 +151,7 @@ static void usage(const char *progname)
 {
 	fprintf(stderr, "\n"
 		"Usage: %s %s -b IPv4_bind_address [-p IPv4_bind_port] -n IPv6_prefix [-A|-N|-H]\n"
-		"          -h MySQL_Host -u MySQL_User -P MySQL_Pass -d MySQL_DBName\n"
+		"          -h MySQL_Host -u MySQL_User -P MySQL_Pass -d MySQL_DBName -D\n"
 		"       IPv4_bind_address: Used for client to connect\n"
 		"                          ex: 123.123.123.123\n"
 		"       IPv4_bind_port:    Used for client to connect\n"
@@ -158,7 +161,8 @@ static void usage(const char *progname)
 		"                          ex: 2001:DB8:ABC:DEF:123::/80\n"
 		"       -N:                Anonymous mode only(Default)\n"
 		"       -A:                Authenticated mode only\n"
-		"       -H:                Hybrid(Anonymous/Authenticated) mode\n",
+		"       -H:                Hybrid(Anonymous/Authenticated) mode\n"
+		"       -D:                Debug mode: Keep standard I/O, don't fork\n",
 		progname,
 #ifdef linux
 		"[-t tunX]"
@@ -212,7 +216,7 @@ static int check_server_configure(void)
 
 int main(int argc, char *argv[], char *envv[])
 {
-	openlog("tsps", LOG_CONS, LOG_USER);
+	openlog("tsps", LOG_CONS | LOG_PID, LOG_USER);
 
 	if (parse_args(argc, argv)) {
 		usage(argv[0]);
@@ -244,8 +248,16 @@ int main(int argc, char *argv[], char *envv[])
 		return EXIT_FAILURE;
 	}
 
+	if (!server.debug) {
+		close(0);
+		close(1);
+		close(2);
+		if (fork())
+			return 0;
+	}
+
 	if (create_threads()) {
-		fprintf(stderr, "Failed to create threads\n");
+		tspslog(LOG_ERR, "Failed to create threads\n");
 		return EXIT_FAILURE;
 	}
 

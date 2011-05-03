@@ -83,6 +83,7 @@ struct tspserver {
 	uint8_t			mode;
 	int			tunfd;
 	int			sockfd;
+	int			debug;
 	char			*dbhost;
 	char			*dbuser;
 	char			*dbpass;
