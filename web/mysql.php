@@ -15,6 +15,7 @@
                 `email` varchar(128) NOT NULL default '',
                 `lastlogin` timestamp NOT NULL default '00:00:00',
                 `state` tinyint(20) NOT NULL default '0',
+		AUTO_INCREMENT = 16,
 		PRIMARY KEY (`id`),
 		KEY `user` (`user`),
 		KEY `email` (`email`)
