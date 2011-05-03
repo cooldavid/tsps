@@ -34,13 +34,14 @@ static int parse_args(int argc, char *argv[])
 {
 	int opt;
 	uint16_t port;
+	int len;
 	char *prelen, *eptr;
 	char v6addr[64];
 
 	server.mode = UNDEFINED_MODE;
 	server.v4sockaddr.sin_port = htons(3653);
 
-	while ((opt = getopt(argc, argv, "t:b:p:n:NA")) != -1) {
+	while ((opt = getopt(argc, argv, "t:b:p:n:NAHh:u:P:d:")) != -1) {
 		switch (opt) {
 		case 't':
 			strncpy(server.tundev, optarg, 31);
@@ -103,13 +104,42 @@ static int parse_args(int argc, char *argv[])
 			}
 			server.mode = AUTHENTICATED_MODE;
 			break;
+		case 'H':
+			if (server.mode != UNDEFINED_MODE) {
+				fprintf(stderr, "Can not set mode twice.\n");
+				return -1; 
+			}
+			server.mode = HYBRID_MODE;
+			break;
+		case 'h':
+			len = strlen(optarg);
+			server.dbhost = malloc(len + 1);
+			strcpy(server.dbhost, optarg);
+			break;
+		case 'u':
+			len = strlen(optarg);
+			server.dbuser = malloc(len + 1);
+			strcpy(server.dbuser, optarg);
+			break;
+		case 'P':
+			len = strlen(optarg);
+			server.dbpass = malloc(len + 1);
+			strcpy(server.dbpass, optarg);
+			memset(optarg, '*', len);
+			break;
+		case 'd':
+			len = strlen(optarg);
+			server.dbname = malloc(len + 1);
+			strcpy(server.dbname, optarg);
+			break;
 		default:
+
 			return -1;
 		}
 	}
 
 	if (server.mode == UNDEFINED_MODE)
-		server.mode = HYBRID_MODE;
+		server.mode = ANONYMOUS_MODE;
 
 	return 0;
 }
@@ -117,7 +147,8 @@ static int parse_args(int argc, char *argv[])
 static void usage(const char *progname)
 {
 	fprintf(stderr, "\n"
-		"Usage: %s %s -b IPv4_bind_address [-p IPv4_bind_port] -n IPv6_prefix [-A|-N]\n"
+		"Usage: %s %s -b IPv4_bind_address [-p IPv4_bind_port] -n IPv6_prefix [-A|-N|-H]\n"
+		"          -h MySQL_Host -u MySQL_User -P MySQL_Pass -d MySQL_DBName\n"
 		"       IPv4_bind_address: Used for client to connect\n"
 		"                          ex: 123.123.123.123\n"
 		"       IPv4_bind_port:    Used for client to connect\n"
@@ -125,8 +156,9 @@ static void usage(const char *progname)
 		"       IPv6_prefix:       The IPv6 prefix that is allowed for client address\n"
 		"                          The value of the prefix length must between 32 and 80\n"
 		"                          ex: 2001:DB8:ABC:DEF:123::/80\n"
-		"       -N:                Anonymous mode only\n"
-		"       -A:                Authenticated mode only\n",
+		"       -N:                Anonymous mode only(Default)\n"
+		"       -A:                Authenticated mode only\n"
+		"       -H:                Hybrid(Anonymous/Authenticated) mode\n",
 		progname,
 #ifdef linux
 		"[-t tunX]"
@@ -150,6 +182,12 @@ static int check_server_configure(void)
 	if (!memcmp(&server.v6sockaddr.sin6_addr, zeros, sizeof(struct in6_addr))) {
 		fprintf(stderr, "Must specify IPv6_prefix\n");
 		return -1; 
+	}
+
+	if (server.mode != ANONYMOUS_MODE &&
+	    (!server.dbhost || !server.dbuser || !server.dbpass || !server.dbname)) {
+		fprintf(stderr, "Must specify MySQL parameters in authenticated mode\n");
+		return -1;
 	}
 
 	bzero(&server.v6postfixmask, sizeof(struct in6_addr));
@@ -198,6 +236,11 @@ int main(int argc, char *argv[], char *envv[])
 
 	if (bind_socket()) {
 		fprintf(stderr, "Binding socket error\n");
+		return EXIT_FAILURE;
+	}
+
+	if (server.mode != ANONYMOUS_MODE && mysql_initialize()) {
+		fprintf(stderr, "Initialize MySQL error\n");
 		return EXIT_FAILURE;
 	}
 

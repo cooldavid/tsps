@@ -32,6 +32,7 @@
 #define DEBUG_TSP
 #define DEBUG_XML
 #define DEBUG_KEEPALIVE
+#define DEBUG_MYSQL
 #endif
 
 #define DEBUG_FUNCTION(dbgname) \
@@ -73,5 +74,11 @@ NULL_FUNCTION(xml)
 DEBUG_FUNCTION(keepalive)
 #else
 NULL_FUNCTION(keepalive)
+#endif
+
+#ifdef DEBUG_MYSQL
+DEBUG_FUNCTION(mysql)
+#else
+NULL_FUNCTION(mysql)
 #endif
 

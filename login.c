@@ -26,10 +26,15 @@
 
 int login_plain(struct client_session *session, const char *user, const char *pass)
 {
-	/*
-	 * FIXME: Check username/password from database
-	 */
-	return -1;
+	struct in6_addr v6addr;
+	int id = mysql_get_userid(user, pass);
+	if (id == -1)
+		return -1;
+
+	memcpy(&v6addr, &server.v6prefix, sizeof(v6addr));
+	v6addr.s6_addr32[3] = htonl(id);
+	session_set_v6addr(session, &v6addr);
+	return 0;
 }
 
 void login_anonymous(struct client_session *session)

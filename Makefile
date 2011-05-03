@@ -20,8 +20,10 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-CFLAGS+=-Wall
-LDFLAGS+=-lpthread -lrt -lexpat
+MYSQL_CFLAGS=$(shell mysql_config --cflags)
+MYSQL_LDFLAGS=$(shell mysql_config --libs) -lmysqlclient_r
+CFLAGS+=-Wall $(MYSQL_CFLAGS)
+LDFLAGS+=-lpthread -lrt -lexpat $(MYSQL_LDFLAGS)
 
 ifdef DBG
 CFLAGS+=-DDEBUG_$(DBG) -g
@@ -36,7 +38,7 @@ all: tsps
 $(OBJS): tsps.h
 
 tsps: $(OBJS) tsps.h
-	$(CC) -o $@ $(LDFLAGS) $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
 clean:
 	@rm -rf tsps *.o

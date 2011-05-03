@@ -83,6 +83,10 @@ struct tspserver {
 	uint8_t			mode;
 	int			tunfd;
 	int			sockfd;
+	char			*dbhost;
+	char			*dbuser;
+	char			*dbpass;
+	char			*dbname;
 };
 
 enum {
@@ -184,6 +188,10 @@ void parse_tunnel_request(char *xml, int contlen, struct tunnel_request *req);
 char *build_tunnel_offer(struct client_session *session);
 void parse_tunnel_ack(char *xml, int contlen, struct tunnel_ack *ack);
 
+/* mysql.c */
+int mysql_initialize(void);
+int mysql_get_userid(const char *user, const char *pass);
+
 /* log.c */
 void tspslog(int prio, const char *msg, ...);
 
@@ -192,5 +200,6 @@ void dbg_thread(const char *dbgmsg, ...);
 void dbg_tsp(const char *dbgmsg, ...);
 void dbg_xml(const char *dbgmsg, ...);
 void dbg_keepalive(const char *dbgmsg, ...);
+void dbg_mysql(const char *dbgmsg, ...);
 
 #endif
