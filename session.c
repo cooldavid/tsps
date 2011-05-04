@@ -258,7 +258,8 @@ put_session(struct client_session *session)
 	pthread_mutex_lock(&lock_session);
 	if (!(--(session->refcnt)) && session->status == STAT_DESTROY) {
 		remove_session(session);
-		remove_keepalive(session);
+		if (session->kai)
+			remove_keepalive(session);
 		free(session);
 	}
 	pthread_mutex_unlock(&lock_session);
@@ -270,7 +271,8 @@ kill_session(struct client_session *session)
 	pthread_mutex_lock(&lock_session);
 	if (!(--(session->refcnt))) {
 		remove_session(session);
-		remove_keepalive(session);
+		if (session->kai)
+			remove_keepalive(session);
 		free(session);
 	} else {
 		session->status = STAT_DESTROY;
@@ -286,6 +288,7 @@ timeout_session(struct client_session *session)
 		remove_session(session);
 		free(session);
 	} else {
+		session->kai = NULL;
 		session->status = STAT_DESTROY;
 	}
 	pthread_mutex_unlock(&lock_session);
