@@ -102,6 +102,8 @@ static void unhash_keepalive(struct keepalive_info *kai, int key)
 	} else {
 		kahash[key] = kai->next;
 	}
+	kai->priv = NULL;
+	kai->next = NULL;
 }
 
 static struct keepalive_info *pop_keepalive(time_t exp)
