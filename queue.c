@@ -31,7 +31,7 @@
 #include <time.h>
 
 enum {
-	QUEUE_SIZE = 32,
+	QUEUE_SIZE = 1024,
 };
 static char queue_tun[QUEUE_SIZE][MTU];
 static char queue_sock[QUEUE_SIZE][PHDRSZ + MTU];
@@ -46,22 +46,14 @@ static pthread_mutex_t lock_sockqueue = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond_tunqueue = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t cond_sockqueue = PTHREAD_COND_INITIALIZER;
 
-int queue_tun_isfull(void)
+static inline int _queue_tun_isfull(void)
 {
-	int rt;
-	pthread_mutex_lock(&lock_tunqueue);
-	rt = (freeptr_tun == curptr_tun);
-	pthread_mutex_unlock(&lock_tunqueue);
-	return rt;
+	return freeptr_tun == curptr_tun;
 }
 
-int queue_sock_isfull(void)
+static inline int _queue_sock_isfull(void)
 {
-	int rt;
-	pthread_mutex_lock(&lock_sockqueue);
-	rt = (freeptr_sock == curptr_sock);
-	pthread_mutex_unlock(&lock_sockqueue);
-	return rt;
+	return freeptr_sock == curptr_sock;
 }
 
 static inline int _queue_tun_isempty(void)
@@ -92,13 +84,33 @@ int queue_sock_isempty(void)
 	return rt;
 }
 
+static void drop_tun(void)
+{
+	static char dummy[MTU];
+	ssize_t length;
+
+	tspslog(LOG_WARNING, "Dropped packet from TUN interface");
+	tun_read(dummy, &length);
+}
+
+static void drop_sock(void)
+{
+	static char dummy[MTU];
+	ssize_t length;
+
+	tspslog(LOG_WARNING, "Dropped packet from UDP socket");
+	socket_recvfrom(dummy, &length, NULL, NULL);
+}
+
 void enqueue_tun(void)
 {
 	int ptr;
 
 	pthread_mutex_lock(&lock_tunqueue);
-	if (freeptr_tun == curptr_tun) {
+	if (_queue_tun_isfull()) {
 		pthread_mutex_unlock(&lock_tunqueue);
+		pthread_cond_signal(&cond_tunqueue);
+		drop_tun();
 		return;
 	}
 	ptr = (freeptr_tun++) % QUEUE_SIZE;
@@ -115,8 +127,10 @@ void enqueue_sock(void)
 	socklen_t socklen = sizeof(struct sockaddr_in);
 
 	pthread_mutex_lock(&lock_sockqueue);
-	if (freeptr_sock == curptr_sock) {
+	if (_queue_sock_isfull()) {
 		pthread_mutex_unlock(&lock_sockqueue);
+		pthread_cond_signal(&cond_sockqueue);
+		drop_sock();
 		return;
 	}
 	ptr = (freeptr_sock++) % QUEUE_SIZE;
@@ -126,24 +140,6 @@ void enqueue_sock(void)
 	socket_recvfrom(&queue_sock[ptr][PHDRSZ], &length_sock[ptr],
 			&client_addr[ptr], &socklen);
 	pthread_cond_signal(&cond_sockqueue);
-}
-
-void drop_tun(void)
-{
-	static char dummy[MTU];
-	ssize_t length;
-
-	tspslog(LOG_WARNING, "Dropped packet from TUN interface");
-	tun_read(dummy, &length);
-}
-
-void drop_sock(void)
-{
-	static char dummy[MTU];
-	ssize_t length;
-
-	tspslog(LOG_WARNING, "Dropped packet from UDP socket");
-	socket_recvfrom(dummy, &length, NULL, NULL);
 }
 
 void dequeue_tun(void)

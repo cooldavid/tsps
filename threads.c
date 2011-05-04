@@ -95,19 +95,11 @@ void main_loop(void)
 			break;
 		}
 
-		if (FD_ISSET(server.tunfd, &fdset)) {
-			if (queue_tun_isfull())
-				drop_tun();
-			else
-				enqueue_tun();
-		}
+		if (FD_ISSET(server.tunfd, &fdset))
+			enqueue_tun();
 
-		if (FD_ISSET(server.sockfd, &fdset)) {
-			if (queue_sock_isfull())
-				drop_sock();
-			else
-				enqueue_sock();
-		}
+		if (FD_ISSET(server.sockfd, &fdset))
+			enqueue_sock();
 	}
 }
 

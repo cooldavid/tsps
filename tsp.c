@@ -275,7 +275,7 @@ static void tsp_confirm_tunnel(struct client_session *session,
 	put_session(session);
 	tspslog(LOG_INFO, "Client %s:%u connected.",
 			inet_ntoa(session->v4addr),
-			ntohs(session->v4port));
+			session->v4port);
 	return;
 
 ack_error:

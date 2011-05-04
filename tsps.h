@@ -154,14 +154,10 @@ void session_set_v6addr(struct client_session *session, struct in6_addr *addr6);
 void timeout_session(struct client_session *session);
 
 /* queue.c */
-int queue_tun_isfull(void);
-int queue_sock_isfull(void);
 int queue_tun_isempty(void);
 int queue_sock_isempty(void);
 void enqueue_tun(void);
 void enqueue_sock(void);
-void drop_tun(void);
-void drop_sock(void);
 void dequeue_tun(void);
 void dequeue_sock(void);
 void sleep_on_tun_empty(int seconds);
