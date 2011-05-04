@@ -45,7 +45,11 @@
 		if (!fmt) \
 			return; \
 		sprintf(fmt, "dbg_" #dbgname ": %s\n", dbgmsg); \
-		vprintf(fmt, ap); \
+		if (server.debug) { \
+			vprintf(fmt, ap); \
+		} else { \
+			vsyslog(LOG_DEBUG, fmt, ap); \
+		} \
 		free(fmt); \
 	}
 
