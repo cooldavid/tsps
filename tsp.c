@@ -52,7 +52,7 @@ void process_tun_packet(const char *data, ssize_t len)
 		return;
 
 	/*
-	 * NOTE: Handle broadcast/multicast destination?
+	 * NOTE: Handle multicast destination?
 	 */
 	session = get_session_byv6(&v6hdr->ip6_dst);
 	if (!session) {
@@ -94,8 +94,7 @@ static void tsp_version_cap(struct client_session *session,
 	if (server.mode == ANONYMOUS_MODE || server.mode == HYBRID_MODE)
 		strcat(cap, " AUTH=ANONYMOUS");
 	if (server.mode == AUTHENTICATED_MODE || server.mode == HYBRID_MODE) {
-		strcat(cap, " AUTH=PLAIN");
-		/* FIXME: strcat(cap, " AUTH=PLAIN AUTH=DIGEST-MD5"); */
+		strcat(cap, " AUTH=PLAIN AUTH=DIGEST-MD5");
 	}
 	strcat(cap, "\r\n");
 	tsp_reply(session, tsp, cap);
@@ -139,12 +138,42 @@ auth_fail:
 	kill_session(session);
 }
 
+static void tsp_auth_md5(struct client_session *session,
+				struct tsphdr *tsp, ssize_t dlen)
+{
+	static const char *authfail = "300 Authentication failed\r\n";
+	char md5sresp[BUFLEN];
+
+	if (login_md5(session, tsp->data, dlen, md5sresp))
+		goto auth_fail;
+
+	tsp_reply(session, tsp, md5sresp);
+	session->status = STAT_AUTH_MD5_OK;
+	put_session(session);
+	return;
+
+auth_fail:
+	tsp_reply(session, tsp, authfail);
+	kill_session(session);
+}
+
+static void tsp_auth_md5_ok(struct client_session *session,
+				struct tsphdr *tsp, ssize_t dlen)
+{
+	static const char *authok = "200 Success\r\n";
+
+	tsp_reply(session, tsp, authok);
+	session->status = STAT_CREATE;
+	put_session(session);
+}
+
 static void tsp_auth(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *authpfx = "AUTHENTICATE";
 	static const char *authfail = "300 Authentication failed\r\n";
 	static const char *authok = "200 Success\r\n";
+	char md5challenge[BUFLEN];
 	char *authtype;
 
 	if (dlen <= strlen(authpfx) + 2 ||
@@ -176,9 +205,16 @@ static void tsp_auth(struct client_session *session,
 		}
 	}
 
-	/*
-	 * FIXME: Implement digest-md5 auth here
-	 */
+	if (server.mode == AUTHENTICATED_MODE || server.mode == HYBRID_MODE) {
+		if (!strncasecmp(authtype, "DIGEST-MD5", 10)) {
+			build_md5_challenge(session, md5challenge);
+			tsp_reply(session, tsp, md5challenge);
+			session->mode = AUTHENTICATED_MODE;
+			session->status = STAT_AUTH_MD5;
+			put_session(session);
+			return;
+		}
+	}
 
 	tsp_reply(session, tsp, authfail);
 	kill_session(session);
@@ -333,7 +369,7 @@ void process_sock_packet(const struct sockaddr_in *client,
 	struct client_session *session;
 	struct tsphdr *tsphdr = (struct tsphdr *)data;
 
-	if (len <= sizeof(struct tsphdr))
+	if (len < sizeof(struct tsphdr))
 		return;
 
 	session = get_session_byv4(client);
@@ -358,6 +394,14 @@ void process_sock_packet(const struct sockaddr_in *client,
 		case STAT_AUTH_PLAIN:
 			dbg_tsp("STAT_AUTH_PLAIN");
 			tsp_auth_plain(session, tsphdr, len);
+			break;
+		case STAT_AUTH_MD5:
+			dbg_tsp("STAT_AUTH_MD5");
+			tsp_auth_md5(session, tsphdr, len);
+			break;
+		case STAT_AUTH_MD5_OK:
+			dbg_tsp("STAT_AUTH_MD5_OK");
+			tsp_auth_md5_ok(session, tsphdr, len);
 			break;
 		case STAT_CREATE:
 			dbg_tsp("STAT_CREATE");

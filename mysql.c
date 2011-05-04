@@ -57,15 +57,14 @@ int mysql_initialize(void)
 	return 0;
 }
 
-int mysql_get_userid(const char *user, const char *pass)
+int mysql_get_userid(const char *user)
 {
 	MYSQL_RES *result;
 	MYSQL_ROW row;
 	int id;
 	char query[256];
 
-	sprintf(query, "SELECT `id` FROM `users` WHERE `user`='%s' AND `pass`='%s' AND `state`=1;",
-			user, pass);
+	sprintf(query, "SELECT `id` FROM `users` WHERE `user`='%s' AND `state`=1;", user);
 	dbg_mysql("MySQL Executing: %s", query);
 	if (mysql_query(&mysql, query)) {
 		tspslog(LOG_ERR, "Error mysql %u: %s\n",
@@ -101,5 +100,42 @@ int mysql_get_userid(const char *user, const char *pass)
 	}
 
 	return id;
+}
+
+int mysql_get_passhash(const char *user, char *pass)
+{
+	MYSQL_RES *result;
+	MYSQL_ROW row;
+	int rc = 0;
+	char query[256];
+
+	sprintf(query, "SELECT `pass` FROM `users` WHERE `user`='%s' AND `state`=1;", user);
+	dbg_mysql("MySQL Executing: %s", query);
+	if (mysql_query(&mysql, query)) {
+		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+				mysql_errno(&mysql), mysql_error(&mysql));
+		dbg_mysql("Error mysql %u: %s\n",
+				mysql_errno(&mysql), mysql_error(&mysql));
+		return -1;
+	}
+
+	result = mysql_store_result(&mysql);
+	if (!result) {
+		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+				mysql_errno(&mysql), mysql_error(&mysql));
+		dbg_mysql("Error mysql %u: %s\n",
+				mysql_errno(&mysql), mysql_error(&mysql));
+		return -1;
+	}
+
+	row = mysql_fetch_row(result);
+	if (!row) {
+		rc = -1;
+	} else {
+		strcpy(pass, row[0]);
+	}
+	mysql_free_result(result);
+
+	return rc;
 }
 

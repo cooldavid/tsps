@@ -88,6 +88,7 @@
 	function update_password($loginid, $password) {
 		global $dblink;
 
-		mysql_query("UPDATE `users` SET `pass`='$password',`state`=1 WHERE `user`='$loginid'",$dblink);
+		$hashed_pass = md5($loginid.":cdpatsps:".$password);
+		mysql_query("UPDATE `users` SET `pass`='$hashed_pass',`state`=1 WHERE `user`='$loginid'",$dblink);
 	}
 ?>

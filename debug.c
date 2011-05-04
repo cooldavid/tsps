@@ -33,6 +33,7 @@
 #define DEBUG_XML
 #define DEBUG_KEEPALIVE
 #define DEBUG_MYSQL
+#define DEBUG_LOGIN
 #endif
 
 #define DEBUG_FUNCTION(dbgname) \
@@ -84,5 +85,11 @@ NULL_FUNCTION(keepalive)
 DEBUG_FUNCTION(mysql)
 #else
 NULL_FUNCTION(mysql)
+#endif
+
+#ifdef DEBUG_LOGIN
+DEBUG_FUNCTION(login)
+#else
+NULL_FUNCTION(login)
 #endif
 

@@ -36,6 +36,8 @@ struct keepalive_info;
 #define PAYLOADLEN 8
 #define ICMP6LEN (sizeof(struct icmp6_hdr) + PAYLOADLEN)
 #define IP6LEN (sizeof(struct ip6_hdr) + ICMP6LEN)
+#define BUFLEN 256
+#define REALM "cdpatsps"
 
 struct client_session {
 	struct in_addr		nataddr;
@@ -46,6 +48,7 @@ struct client_session {
 	int			mode;
 	int			keepalive;
 	int			refcnt;
+	char			nonce[9];
 	time_t			lastrcv;
 	time_t			lastsnd;
 	struct keepalive_info	*kai;
@@ -59,6 +62,8 @@ enum {
 	STAT_HELLO,
 	STAT_AUTH,
 	STAT_AUTH_PLAIN,
+	STAT_AUTH_MD5,
+	STAT_AUTH_MD5_OK,
 	STAT_CREATE,
 	STAT_CONFIRM,
 	STAT_ESTAB,
@@ -177,6 +182,8 @@ void remove_keepalive(struct client_session *session);
 void do_keepalive(void);
 
 /* login.c */
+void build_md5_challenge(struct client_session *session, char challenge[BUFLEN]);
+int login_md5(struct client_session *session, char *data, ssize_t dlen, char md5sresp[BUFLEN]);
 int login_plain(struct client_session *session, const char *user, const char *pass);
 void login_anonymous(struct client_session *session);
 
@@ -187,7 +194,8 @@ void parse_tunnel_ack(char *xml, int contlen, struct tunnel_ack *ack);
 
 /* mysql.c */
 int mysql_initialize(void);
-int mysql_get_userid(const char *user, const char *pass);
+int mysql_get_userid(const char *user);
+int mysql_get_passhash(const char *user, char *pass);
 
 /* log.c */
 void tspslog(int prio, const char *msg, ...);
@@ -198,5 +206,6 @@ void dbg_tsp(const char *dbgmsg, ...);
 void dbg_xml(const char *dbgmsg, ...);
 void dbg_keepalive(const char *dbgmsg, ...);
 void dbg_mysql(const char *dbgmsg, ...);
+void dbg_login(const char *dbgmsg, ...);
 
 #endif
