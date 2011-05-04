@@ -140,7 +140,7 @@ static void _do_keepalive(time_t expire)
 		/*
 		 * Check if session is still exist
 		 */
-		session = kai->session;
+		session = get_session(kai->session);
 		if (!session) {
 			dbg_keepalive("Free keepalive info for killed session: %p",
 					kai);
@@ -162,6 +162,7 @@ static void _do_keepalive(time_t expire)
 			dbg_keepalive("Skip keepalive for active channel: "
 					"scheduled %u seconds later (%p)",
 					kai->expire - time(NULL), kai);
+			put_session(session);
 			pthread_mutex_unlock(&lock_hook);
 			continue;
 		}
@@ -189,6 +190,7 @@ static void _do_keepalive(time_t expire)
 		port = session->v4port;
 		keepalive = session->keepalive;
 
+		put_session(session);
 		pthread_mutex_unlock(&lock_hook);
 
 		/*

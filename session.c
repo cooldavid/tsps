@@ -161,7 +161,9 @@ struct client_session *
 get_session(struct client_session *session)
 {
 	pthread_mutex_lock(&lock_session);
-	if (session->status != STAT_DESTROY)
+	if (session->status == STAT_DESTROY)
+		session = NULL;
+	else
 		++(session->refcnt);
 	pthread_mutex_unlock(&lock_session);
 	return session;
@@ -176,7 +178,10 @@ get_session_byv4(const struct sockaddr_in *addr)
 	session = search_session_byv4(addr);
 	if (!session)
 		session = create_session(addr);
-	++(session->refcnt);
+	if (session->status == STAT_DESTROY)
+		session = NULL;
+	else
+		++(session->refcnt);
 	pthread_mutex_unlock(&lock_session);
 	return session;
 }
@@ -188,8 +193,12 @@ get_session_byv6(const struct in6_addr *addr6)
 
 	pthread_mutex_lock(&lock_session);
 	session = search_session_byv6(addr6);
-	if (session)
-		++(session->refcnt);
+	if (session) {
+		if (session->status == STAT_DESTROY)
+			session = NULL;
+		else
+			++(session->refcnt);
+	}
 	pthread_mutex_unlock(&lock_session);
 	return session;
 }
