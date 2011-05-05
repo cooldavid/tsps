@@ -242,7 +242,7 @@ remove_v6session(struct client_session *session)
 	} else {
 		v6hash[key] = session->v6next;
 		if (session->v6next)
-			session->v6next->priv = NULL;
+			session->v6next->v6priv = NULL;
 	}
 }
 
