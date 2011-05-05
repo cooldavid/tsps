@@ -224,6 +224,8 @@ remove_v4session(struct client_session *session)
 			session->v4next->v4priv = session->v4priv;
 	} else {
 		v4hash[key] = session->v4next;
+		if (session->v4next)
+			session->v4next->v4priv = NULL;
 	}
 }
 
@@ -239,6 +241,8 @@ remove_v6session(struct client_session *session)
 			session->v6next->v6priv = session->v6priv;
 	} else {
 		v6hash[key] = session->v6next;
+		if (session->v6next)
+			session->v6next->priv = NULL;
 	}
 }
 

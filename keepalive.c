@@ -101,6 +101,8 @@ static void unhash_keepalive(struct keepalive_info *kai, int key)
 			kai->next->priv = kai->priv;
 	} else {
 		kahash[key] = kai->next;
+		if (kai->next)
+			kai->next->priv = NULL;
 	}
 	kai->priv = NULL;
 	kai->next = NULL;
