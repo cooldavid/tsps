@@ -31,6 +31,8 @@ int mysql_initialize(void)
 {
 	MYSQL *conn;
 	MYSQL_RES *result;
+	my_bool True = 1;
+	unsigned int proto = MYSQL_PROTOCOL_SOCKET;
 
 	conn = mysql_init(&mysql);
 	if (!conn) {
@@ -39,8 +41,29 @@ int mysql_initialize(void)
 		return -1;
 	}
 
-	if (mysql_real_connect(conn, server.dbhost, server.dbuser,
-				server.dbpass, server.dbname, 0, NULL, 0) == NULL) {
+	if (server.dbhost[0] != '/') {
+		if (mysql_real_connect(conn, server.dbhost, server.dbuser,
+					server.dbpass, server.dbname, 0, NULL, 0) == NULL) {
+			fprintf(stderr, "Error mysql %u: %s\n",
+					mysql_errno(conn), mysql_error(conn));
+			return -1;
+		}
+	} else {
+		if (mysql_options(conn, MYSQL_OPT_PROTOCOL, &proto)) {
+			fprintf(stderr, "Error mysql %u: %s\n",
+					mysql_errno(conn), mysql_error(conn));
+			return -1;
+		}
+
+		if (mysql_real_connect(conn, NULL, server.dbuser,
+					server.dbpass, server.dbname, 0, server.dbhost, 0) == NULL) {
+			fprintf(stderr, "Error mysql %u: %s\n",
+					mysql_errno(conn), mysql_error(conn));
+			return -1;
+		}
+	}
+
+	if (mysql_options(conn, MYSQL_OPT_RECONNECT, &True)) {
 		fprintf(stderr, "Error mysql %u: %s\n",
 				mysql_errno(conn), mysql_error(conn));
 		return -1;
@@ -67,7 +90,7 @@ int mysql_get_userid(const char *user)
 	sprintf(query, "SELECT `id` FROM `users` WHERE `user`='%s' AND `state`=1;", user);
 	dbg_mysql("MySQL Executing: %s", query);
 	if (mysql_query(&mysql, query)) {
-		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		dbg_mysql("Error mysql %u: %s\n",
 				mysql_errno(&mysql), mysql_error(&mysql));
@@ -76,7 +99,7 @@ int mysql_get_userid(const char *user)
 
 	result = mysql_store_result(&mysql);
 	if (!result) {
-		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		dbg_mysql("Error mysql %u: %s\n",
 				mysql_errno(&mysql), mysql_error(&mysql));
@@ -94,7 +117,9 @@ int mysql_get_userid(const char *user)
 	sprintf(query, "UPDATE `users` SET `lastlogin`=CURRENT_TIMESTAMP()"
 			" WHERE `user`='%s';", user);
 	if (mysql_query(&mysql, query)) {
-		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+		tspslog(LOG_ERR, "Error mysql %u: %s",
+				mysql_errno(&mysql), mysql_error(&mysql));
+		dbg_mysql("Error mysql %u: %s\n",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		return -1;
 	}
@@ -112,7 +137,7 @@ int mysql_get_passhash(const char *user, char *pass)
 	sprintf(query, "SELECT `pass` FROM `users` WHERE `user`='%s' AND `state`=1;", user);
 	dbg_mysql("MySQL Executing: %s", query);
 	if (mysql_query(&mysql, query)) {
-		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		dbg_mysql("Error mysql %u: %s\n",
 				mysql_errno(&mysql), mysql_error(&mysql));
@@ -121,7 +146,7 @@ int mysql_get_passhash(const char *user, char *pass)
 
 	result = mysql_store_result(&mysql);
 	if (!result) {
-		tspslog(LOG_ERR, "Error mysql %u: %s\n",
+		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		dbg_mysql("Error mysql %u: %s\n",
 				mysql_errno(&mysql), mysql_error(&mysql));

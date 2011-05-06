@@ -259,6 +259,8 @@ int login_md5(struct client_session *session, char *data, ssize_t dlen, char md5
 	if (mysql_get_passhash(md5r.username, passhash))
 		return -1;
 
+	dbg_login("MD5-login: Stored hash %s", passhash);
+
 	if (strlen(passhash) != 32)
 		return -1;
 
@@ -330,9 +332,11 @@ int login_plain(struct client_session *session, const char *user, const char *pa
 	unsigned char HA1[16], HEXHA1[33];
 	int i, id;
 
+	dbg_login("Plain-login: %s %s", user, pass);
 	if (mysql_get_passhash(user, passhash))
 		return -1;
 
+	dbg_login("Plain-login: Stored hash %s", passhash);
 	if (strlen(passhash) != 32)
 		return -1;
 
@@ -341,6 +345,7 @@ int login_plain(struct client_session *session, const char *user, const char *pa
 	for (i = 0; i < 16; ++i)
 		sprintf((char *)(HEXHA1 + (i * 2)), "%02x", HA1[i]);
 
+	dbg_login("Plain-login: Gened hash %s", (char *)HEXHA1);
 	if (strcmp(passhash, (char *)HEXHA1))
 		return -1;
 
@@ -348,6 +353,7 @@ int login_plain(struct client_session *session, const char *user, const char *pa
 	if (id == -1)
 		return -1;
 
+	dbg_login("Plain-login: %s id is %d", user, id);
 	memcpy(&v6addr, &server.v6prefix, sizeof(v6addr));
 	v6addr.s6_addr32[3] = htonl(id);
 	session_set_v6addr(session, &v6addr);
