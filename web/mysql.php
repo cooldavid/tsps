@@ -85,6 +85,21 @@
 		return $email;
 	}
 
+	function get_user($email) {
+		global $dblink;
+		$user = "";
+
+		$res = mysql_query("SELECT `user` FROM `users` WHERE `email`='$email' AND `state`=0",$dblink);
+		if (!$res)
+			return "";
+		if (mysql_num_rows($res) != 1)
+			$user = "";
+		$row = mysql_fetch_assoc($res);
+		$user = $row['user'];
+		mysql_free_result($res);
+		return $user;
+	}
+
 	function update_password($loginid, $password) {
 		global $dblink;
 
