@@ -72,7 +72,7 @@ void insert_keepalive(struct client_session *session)
 	kai->expire = time(NULL) + session->keepalive;
 	kai->session = session;
 	session->kai = kai;
-	build_icmp6(kai->kapkt, &session->v6addr);
+	build_icmp6(kai->kapkt, &kai->chksum, &session->v6addr);
 	insert_hash(kai);
 
 	dbg_keepalive("Hooked keepalive info for session: %s:%u (%p)",
@@ -200,7 +200,7 @@ static void _do_keepalive(time_t expire)
 		 */
 		dbg_keepalive("Sending keepalive at %u (%p)",
 				time(NULL), kai);
-		socket_ping(&ip, port, kai->kapkt);
+		socket_ping(&ip, port, kai->kapkt, kai->chksum);
 		kai->expire = time(NULL) + keepalive;
 		insert_hash(kai);
 		dbg_keepalive("Keepalive scheduled %u seconds later (%p)",

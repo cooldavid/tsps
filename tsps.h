@@ -73,6 +73,7 @@ enum {
 struct keepalive_info {
 	time_t			expire;
 	uint8_t			kapkt[IP6LEN];
+	uint16_t		chksum;
 	struct client_session	*session;
 	struct keepalive_info	*next;
 	struct keepalive_info	*priv;
@@ -137,8 +138,8 @@ void socket_recvfrom(void *data, int *len,
 void socket_sendto(void *data, int len,
 			const struct in_addr *addr, in_port_t port);
 void socket_ping(const struct in_addr *addr, in_port_t port,
-		uint8_t icmp6buf[IP6LEN]);
-void build_icmp6(uint8_t icmp6buf[IP6LEN], const struct in6_addr *addr6);
+		uint8_t icmp6buf[IP6LEN], uint16_t chksum);
+void build_icmp6(uint8_t icmp6buf[IP6LEN], uint16_t *chksum, const struct in6_addr *addr6);
 
 /* session.c
  *

@@ -121,12 +121,11 @@ static int icmp6_cksum(const struct ip6_hdr *ip6, const struct icmp6_hdr *icp,
 
         while (sum > 0xffff)
                 sum = (sum & 0xffff) + (sum >> 16);
-        sum = ~sum & 0xffff;
 
-        return (sum);
+        return sum;
 }
 
-void build_icmp6(uint8_t icmp6buf[IP6LEN], const struct in6_addr *addr6)
+void build_icmp6(uint8_t icmp6buf[IP6LEN], uint16_t *chksum, const struct in6_addr *addr6)
 {
 	struct ip6_hdr *ip6hdr = (struct ip6_hdr *)icmp6buf;
 	struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(ip6hdr + 1);
@@ -143,15 +142,15 @@ void build_icmp6(uint8_t icmp6buf[IP6LEN], const struct in6_addr *addr6)
 
 	icmp6hdr->icmp6_type = 128u;
 	icmp6hdr->icmp6_id = htons(time(NULL) & 0xFFFF);
-	icmp6hdr->icmp6_seq = htons(1);
+	icmp6hdr->icmp6_seq = 0;
 
 	for (i = 0; i < PAYLOADLEN; ++i)
 		icmp6payload[i] = 0xCDu;
 
-	icmp6hdr->icmp6_cksum = icmp6_cksum(ip6hdr, icmp6hdr, ICMP6LEN);
+	*chksum = icmp6_cksum(ip6hdr, icmp6hdr, ICMP6LEN);
 }
 
-void socket_ping(const struct in_addr *addr, in_port_t port, uint8_t icmp6buf[IP6LEN])
+void socket_ping(const struct in_addr *addr, in_port_t port, uint8_t icmp6buf[IP6LEN], uint16_t chksum)
 {
 	struct ip6_hdr *ip6hdr = (struct ip6_hdr *)icmp6buf;
 	struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(ip6hdr + 1);
@@ -160,8 +159,11 @@ void socket_ping(const struct in_addr *addr, in_port_t port, uint8_t icmp6buf[IP
 
 	seq = ntohs(icmp6hdr->icmp6_seq);
 	icmp6hdr->icmp6_seq = htons(++seq);
-	sum = ~(icmp6hdr->icmp6_cksum) & 0xffff;
-	icmp6hdr->icmp6_cksum = ~(sum + htons(1)) & 0xffff;
+
+	sum = chksum + icmp6hdr->icmp6_seq;
+        while (sum > 0xffff)
+                sum = (sum & 0xffff) + (sum >> 16);
+	icmp6hdr->icmp6_cksum = ~(sum) & 0xffff;
 	socket_sendto(icmp6buf, IP6LEN, addr, port);
 }
 
