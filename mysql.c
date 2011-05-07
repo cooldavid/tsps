@@ -92,7 +92,7 @@ int mysql_get_userid(const char *user)
 	if (mysql_query(&mysql, query)) {
 		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
-		dbg_mysql("Error mysql %u: %s\n",
+		dbg_mysql("Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		return -1;
 	}
@@ -101,7 +101,7 @@ int mysql_get_userid(const char *user)
 	if (!result) {
 		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
-		dbg_mysql("Error mysql %u: %s\n",
+		dbg_mysql("Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		return -1;
 	}
@@ -119,7 +119,7 @@ int mysql_get_userid(const char *user)
 	if (mysql_query(&mysql, query)) {
 		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
-		dbg_mysql("Error mysql %u: %s\n",
+		dbg_mysql("Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		return -1;
 	}
@@ -139,7 +139,7 @@ int mysql_get_passhash(const char *user, char *pass)
 	if (mysql_query(&mysql, query)) {
 		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
-		dbg_mysql("Error mysql %u: %s\n",
+		dbg_mysql("Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		return -1;
 	}
@@ -148,7 +148,7 @@ int mysql_get_passhash(const char *user, char *pass)
 	if (!result) {
 		tspslog(LOG_ERR, "Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
-		dbg_mysql("Error mysql %u: %s\n",
+		dbg_mysql("Error mysql %u: %s",
 				mysql_errno(&mysql), mysql_error(&mysql));
 		return -1;
 	}
