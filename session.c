@@ -160,6 +160,9 @@ create_session(const struct sockaddr_in *addr)
 struct client_session *
 get_session(struct client_session *session)
 {
+	if (!session)
+		return NULL;
+
 	pthread_mutex_lock(&lock_session);
 	if (session->status == STAT_DESTROY)
 		session = NULL;
