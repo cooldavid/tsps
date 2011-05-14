@@ -319,15 +319,28 @@ ack_error:
 	kill_session(session);
 }
 
+static void tsp_keepalive(struct client_session *session,
+				struct tsphdr *tsp, ssize_t dlen)
+{
+	char buf[MTU];
+
+	dbg_keepalive("Responding TSP keepalive");
+	time(&session->lastrcv);
+	time(&session->lastsnd);
+	memcpy(buf, tsp->data, dlen);
+	tsp_reply(session, tsp, buf);
+}
+
 static void tsp_disconnect(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
+	tsp->seq = 0xFFFFFFFFu;
+	tsp->timestamp = (time(NULL) & 0xFFFFFFFFu);
 	tsp_reply(session, tsp, "310 TSP status error\r\n");
-	tspslog(LOG_INFO, "Client %s:%u %s",
+
+	tspslog(LOG_INFO, "Client %s:%u unauthorized",
 			inet_ntoa(session->v4addr),
-			session->v4port,
-			(session->status == STAT_HELLO)?
-				"unauthorized": "disconnected");
+			session->v4port);
 	kill_session(session);
 }
 
@@ -413,7 +426,7 @@ void process_sock_packet(const struct sockaddr_in *client,
 			break;
 		case STAT_ESTAB:
 			dbg_tsp("STAT_ESTAB");
-			tsp_disconnect(session, tsphdr, len);
+			tsp_keepalive(session, tsphdr, len);
 			break;
 		}
 	} else {
@@ -421,8 +434,6 @@ void process_sock_packet(const struct sockaddr_in *client,
 			time(&session->lastrcv);
 			tsp_data(session, tsphdr, len);
 		} else {
-			tsphdr->seq = 0xFFFFFFFFu;
-			tsphdr->timestamp = (time(NULL) & 0xFFFFFFFFu);
 			tsp_disconnect(session, tsphdr, len);
 		}
 	}
