@@ -189,12 +189,11 @@ get_session_byv4(const struct sockaddr_in *addr)
 	return session;
 }
 
-struct client_session *
-get_session_byv6(const struct in6_addr *addr6)
+static struct client_session *
+_get_session_byv6(const struct in6_addr *addr6)
 {
 	struct client_session *session;
 
-	pthread_mutex_lock(&lock_session);
 	session = search_session_byv6(addr6);
 	if (session) {
 		if (session->status == STAT_DESTROY)
@@ -202,17 +201,18 @@ get_session_byv6(const struct in6_addr *addr6)
 		else
 			++(session->refcnt);
 	}
-	pthread_mutex_unlock(&lock_session);
 	return session;
 }
 
-void
-session_set_v6addr(struct client_session *session, struct in6_addr *addr6)
+struct client_session *
+get_session_byv6(const struct in6_addr *addr6)
 {
+	struct client_session *session;
+
 	pthread_mutex_lock(&lock_session);
-	memcpy(&session->v6addr, addr6, sizeof(*addr6));
-	hashv6_add(session);
+	session = _get_session_byv6(addr6);
 	pthread_mutex_unlock(&lock_session);
+	return session;
 }
 
 static void
@@ -272,10 +272,9 @@ put_session(struct client_session *session)
 	pthread_mutex_unlock(&lock_session);
 }
 
-void
-kill_session(struct client_session *session)
+static void
+_kill_session(struct client_session *session)
 {
-	pthread_mutex_lock(&lock_session);
 	if (!(--(session->refcnt))) {
 		remove_session(session);
 		if (session->kai)
@@ -284,6 +283,27 @@ kill_session(struct client_session *session)
 	} else {
 		session->status = STAT_DESTROY;
 	}
+}
+
+void
+kill_session(struct client_session *session)
+{
+	pthread_mutex_lock(&lock_session);
+	_kill_session(session);
+	pthread_mutex_unlock(&lock_session);
+}
+
+void
+session_set_v6addr(struct client_session *session, const struct in6_addr *addr6)
+{
+	struct client_session *oldsess;
+
+	pthread_mutex_lock(&lock_session);
+	oldsess = _get_session_byv6(addr6);
+	if (oldsess)
+		_kill_session(oldsess);
+	memcpy(&session->v6addr, addr6, sizeof(*addr6));
+	hashv6_add(session);
 	pthread_mutex_unlock(&lock_session);
 }
 

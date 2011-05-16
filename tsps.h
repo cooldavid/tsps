@@ -156,7 +156,7 @@ struct client_session *get_session_byv4(const struct sockaddr_in *addr);
 struct client_session *get_session_byv6(const struct in6_addr *addr6);
 void put_session(struct client_session *session);
 void kill_session(struct client_session *session);
-void session_set_v6addr(struct client_session *session, struct in6_addr *addr6);
+void session_set_v6addr(struct client_session *session, const struct in6_addr *addr6);
 void timeout_session(struct client_session *session);
 
 /* queue.c */
