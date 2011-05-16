@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 enum {
 	HASH_SIZE = 1024,
@@ -300,8 +303,12 @@ session_set_v6addr(struct client_session *session, const struct in6_addr *addr6)
 
 	pthread_mutex_lock(&lock_session);
 	oldsess = _get_session_byv6(addr6);
-	if (oldsess)
+	if (oldsess) {
+		tspslog(LOG_INFO, "Client %s:%u kicked",
+				inet_ntoa(oldsess->v4addr),
+				oldsess->v4port);
 		_kill_session(oldsess);
+	}
 	memcpy(&session->v6addr, addr6, sizeof(*addr6));
 	hashv6_add(session);
 	pthread_mutex_unlock(&lock_session);
@@ -311,6 +318,9 @@ void
 timeout_session(struct client_session *session)
 {
 	pthread_mutex_lock(&lock_session);
+	tspslog(LOG_INFO, "Client %s:%u timed out",
+			inet_ntoa(session->v4addr),
+			session->v4port);
 	if (!(--(session->refcnt))) {
 		remove_session(session);
 		free(session);
