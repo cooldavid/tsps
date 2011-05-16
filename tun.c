@@ -155,7 +155,7 @@ int bind_tunif(void)
 #endif
 }
 
-void tun_read(void *data, int *len)
+void tun_read(void *data, ssize_t *len)
 {
 	do {
 		*len = read(server.tunfd, data, MTU);
@@ -167,7 +167,7 @@ void tun_read(void *data, int *len)
 	} while (*len <= 0);
 }
 
-void tun_write(void *data, int len)
+void tun_write(void *data, size_t len)
 {
 	struct tun_pi *pi;
 	int rc;

@@ -128,14 +128,14 @@ extern struct tspserver server;
 /* tun.c */
 int bind_tunif(void);
 int tun_setaddr(void);
-void tun_read(void *data, int *len);
-void tun_write(void *data, int len);
+void tun_read(void *data, ssize_t *len);
+void tun_write(void *data, size_t len);
 
 /* socket.c */
 int bind_socket(void);
-void socket_recvfrom(void *data, int *len,
+void socket_recvfrom(void *data, ssize_t *len,
 			const struct sockaddr_in *addr, socklen_t *scklen);
-void socket_sendto(void *data, int len,
+void socket_sendto(void *data, size_t len,
 			const struct in_addr *addr, in_port_t port);
 void socket_ping(const struct in_addr *addr, in_port_t port,
 		uint8_t icmp6buf[IP6LEN], uint16_t chksum);

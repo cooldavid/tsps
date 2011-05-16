@@ -234,7 +234,7 @@ int login_md5(struct client_session *session, char *data, ssize_t dlen, char md5
 	int i, id;
 
 	if (strlen(data) > dlen) {
-		printf("%d > %d\n", strlen(data), dlen);
+		printf("%zd > %zd\n", strlen(data), dlen);
 		return -1;
 	}
 

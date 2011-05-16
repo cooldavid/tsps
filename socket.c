@@ -50,7 +50,7 @@ int bind_socket(void)
 	return 0;
 }
 
-void socket_recvfrom(void *data, int *len,
+void socket_recvfrom(void *data, ssize_t *len,
 			const struct sockaddr_in *addr, socklen_t *scklen)
 {
 	do {
@@ -64,7 +64,7 @@ void socket_recvfrom(void *data, int *len,
 	} while (*len <= 0);
 }
 
-void socket_sendto(void *data, int len, const struct in_addr *addr, in_port_t port)
+void socket_sendto(void *data, size_t len, const struct in_addr *addr, in_port_t port)
 {
 	struct sockaddr_in saddr;
 	socklen_t scklen = sizeof(saddr);

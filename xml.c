@@ -128,7 +128,7 @@ char *build_tunnel_offer(struct client_session *session)
 		"	</client>\r\n"
 		"</tunnel>\r\n",
 		serverv4, serverv6, clientv4, clientv6, session->keepalive, serverv6);
-	sprintf(sendbuf, "Content-length: %d\r\n%s", strlen(xmlbuf), xmlbuf);
+	sprintf(sendbuf, "Content-length: %zd\r\n%s", strlen(xmlbuf), xmlbuf);
 	dbg_xml("%s", sendbuf);
 	return sendbuf;
 }
