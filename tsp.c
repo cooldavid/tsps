@@ -267,7 +267,7 @@ static void tsp_create_tunnel(struct client_session *session,
 	parse_tunnel_request(xml, contlen, &req);
 	if (strcasecmp(req.action, "create"))
 		goto create_error;
-	if (strcasecmp(req.type, "v6udpv4"))
+	if (strcasecmp(req.type, "v6udpv4") && strcasecmp(req.type, "v6anyv4"))
 		goto create_error;
 	if (strcasecmp(req.proxy, "no"))
 		goto create_error;
