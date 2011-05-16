@@ -23,7 +23,7 @@
 MYSQL_CFLAGS=$(shell mysql_config --cflags)
 MYSQL_LDFLAGS=$(shell mysql_config --libs) -lmysqlclient_r
 CFLAGS+=-Wall $(MYSQL_CFLAGS)
-LDFLAGS+=-lpthread -lrt -lexpat $(MYSQL_LDFLAGS)
+LDFLAGS+=-lpthread -lrt -lexpat $(MYSQL_LDFLAGS) -lssl
 
 ifdef DBG
 CFLAGS+=-DDEBUG_$(DBG) -g
