@@ -20,9 +20,9 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-MYSQL_CFLAGS=$(shell mysql_config --cflags)
-MYSQL_LDFLAGS=$(shell mysql_config --libs) -lmysqlclient_r
-CFLAGS+=-Wall $(MYSQL_CFLAGS)
+MYSQL_CFLAGS=$(shell mysql_config --include)
+MYSQL_LDFLAGS=$(shell mysql_config --libs_r)
+CFLAGS+=-Wall
 LDFLAGS+=-lpthread -lrt -lexpat $(MYSQL_LDFLAGS) -lssl
 
 ifdef DBG
@@ -36,6 +36,9 @@ OBJS=$(patsubst %.c,%.o,$(wildcard *.c))
 all: tsps
 
 $(OBJS): tsps.h
+
+mysql.o: mysql.c
+	$(CC) $(CFLAGS) $(MYSQL_CFLAGS) -c mysql.c
 
 tsps: $(OBJS) tsps.h
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
