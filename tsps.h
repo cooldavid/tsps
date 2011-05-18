@@ -137,9 +137,11 @@ void socket_recvfrom(void *data, ssize_t *len,
 			const struct sockaddr_in *addr, socklen_t *scklen);
 void socket_sendto(void *data, size_t len,
 			const struct in_addr *addr, in_port_t port);
+void build_icmp6(uint8_t icmp6buf[IP6LEN], uint16_t *chksum, const struct in6_addr *addr6);
 void socket_ping(const struct in_addr *addr, in_port_t port,
 		uint8_t icmp6buf[IP6LEN], uint16_t chksum);
-void build_icmp6(uint8_t icmp6buf[IP6LEN], uint16_t *chksum, const struct in6_addr *addr6);
+void socket_reply_icmp6(const struct in_addr *addr, in_port_t port,
+		void *icmp6buf, ssize_t dlen);
 
 /* session.c
  *

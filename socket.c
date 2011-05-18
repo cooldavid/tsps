@@ -140,7 +140,7 @@ void build_icmp6(uint8_t icmp6buf[IP6LEN], uint16_t *chksum, const struct in6_ad
 	ip6hdr->ip6_src = server.v6sockaddr.sin6_addr;
 	ip6hdr->ip6_dst = *addr6;
 
-	icmp6hdr->icmp6_type = 128u;
+	icmp6hdr->icmp6_type = ICMP6_ECHO_REQUEST;
 	icmp6hdr->icmp6_id = htons(time(NULL) & 0xFFFF);
 	icmp6hdr->icmp6_seq = 0;
 
@@ -165,5 +165,17 @@ void socket_ping(const struct in_addr *addr, in_port_t port, uint8_t icmp6buf[IP
                 sum = (sum & 0xffff) + (sum >> 16);
 	icmp6hdr->icmp6_cksum = ~(sum) & 0xffff;
 	socket_sendto(icmp6buf, IP6LEN, addr, port);
+}
+
+void socket_reply_icmp6(const struct in_addr *addr, in_port_t port, void *icmp6buf, ssize_t dlen)
+{
+	struct ip6_hdr *ip6hdr = (struct ip6_hdr *)icmp6buf;
+	struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(ip6hdr + 1);
+
+	ip6hdr->ip6_dst = ip6hdr->ip6_src;
+	ip6hdr->ip6_src = server.v6sockaddr.sin6_addr;
+	icmp6hdr->icmp6_type = ICMP6_ECHO_REPLY;
+	icmp6hdr->icmp6_cksum -= htons(ICMP6_ECHO_REPLY - ICMP6_ECHO_REQUEST);
+	socket_sendto(icmp6buf, dlen, addr, port);
 }
 

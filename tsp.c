@@ -337,6 +337,7 @@ static void tsp_data(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	struct ip6_hdr *v6hdr = (struct ip6_hdr *)tsp;
+	struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(v6hdr + 1);
 	struct client_session *dstsess;
 	static char addr1[64], addr2[64];
 
@@ -344,6 +345,14 @@ static void tsp_data(struct client_session *session,
 		tspslog(LOG_ERR, "Droped packet due to client v6 address mismatch:\n\t%s\n\t%s",
 				inet_ntop(AF_INET6, &v6hdr->ip6_src, addr1, sizeof(addr1)),
 				inet_ntop(AF_INET6, &session->v6addr, addr2, sizeof(addr2)));
+		return;
+	}
+
+	if (v6hdr->ip6_nxt == IPPROTO_ICMPV6 &&
+	    icmp6hdr->icmp6_type == ICMP6_ECHO_REQUEST &&
+	    !memcmp(&v6hdr->ip6_dst, &server.v6sockaddr.sin6_addr, sizeof(struct in6_addr))) {
+		socket_reply_icmp6(&session->v4addr, session->v4port, v6hdr, dlen);
+		time(&session->lastsnd);
 		return;
 	}
 
