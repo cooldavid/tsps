@@ -80,7 +80,7 @@ static void tsp_reply(struct client_session *session,
 			&session->v4addr, session->v4port);
 }
 
-static void tsp_version_cap(struct client_session *session,
+static int tsp_version_cap(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *verpfx = "VERSION=2.0.";
@@ -99,15 +99,14 @@ static void tsp_version_cap(struct client_session *session,
 	strcat(cap, "\r\n");
 	tsp_reply(session, tsp, cap);
 	session->status = STAT_AUTH;
-	put_session(session);
-	return;
+	return 0;
 
 vercap_error:
 	tsp_reply(session, tsp, "302 Unsupported client version\r\n");
-	kill_session(session);
+	return -1;
 }
 
-static void tsp_auth_plain(struct client_session *session,
+static int tsp_auth_plain(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *authfail = "300 Authentication failed\r\n";
@@ -130,15 +129,14 @@ static void tsp_auth_plain(struct client_session *session,
 
 	tsp_reply(session, tsp, authok);
 	session->status = STAT_CREATE;
-	put_session(session);
-	return;
+	return 0;
 
 auth_fail:
 	tsp_reply(session, tsp, authfail);
-	kill_session(session);
+	return -1;
 }
 
-static void tsp_auth_md5(struct client_session *session,
+static int tsp_auth_md5(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *authfail = "300 Authentication failed\r\n";
@@ -149,25 +147,24 @@ static void tsp_auth_md5(struct client_session *session,
 
 	tsp_reply(session, tsp, md5sresp);
 	session->status = STAT_AUTH_MD5_OK;
-	put_session(session);
-	return;
+	return 0;
 
 auth_fail:
 	tsp_reply(session, tsp, authfail);
-	kill_session(session);
+	return -1;
 }
 
-static void tsp_auth_md5_ok(struct client_session *session,
+static int tsp_auth_md5_ok(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *authok = "200 Success\r\n";
 
 	tsp_reply(session, tsp, authok);
 	session->status = STAT_CREATE;
-	put_session(session);
+	return 0;
 }
 
-static void tsp_auth(struct client_session *session,
+static int tsp_auth(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *authpfx = "AUTHENTICATE";
@@ -179,8 +176,7 @@ static void tsp_auth(struct client_session *session,
 	if (dlen <= strlen(authpfx) + 2 ||
 	    strncasecmp(tsp->data, authpfx, strlen(authpfx))) {
 		tsp_reply(session, tsp, authfail);
-		kill_session(session);
-		return;
+		return -1;
 	}
 
 	authtype = tsp->data + strlen(authpfx) + 1;
@@ -190,8 +186,7 @@ static void tsp_auth(struct client_session *session,
 			login_anonymous(session);
 			session->mode = ANONYMOUS_MODE;
 			session->status = STAT_CREATE;
-			put_session(session);
-			return;
+			return 0;
 		}
 	}
 
@@ -200,8 +195,7 @@ static void tsp_auth(struct client_session *session,
 			tsp_reply(session, tsp, "");
 			session->mode = AUTHENTICATED_MODE;
 			session->status = STAT_AUTH_PLAIN;
-			put_session(session);
-			return;
+			return 0;
 		}
 	}
 
@@ -211,13 +205,12 @@ static void tsp_auth(struct client_session *session,
 			tsp_reply(session, tsp, md5challenge);
 			session->mode = AUTHENTICATED_MODE;
 			session->status = STAT_AUTH_MD5;
-			put_session(session);
-			return;
+			return 0;
 		}
 	}
 
 	tsp_reply(session, tsp, authfail);
-	kill_session(session);
+	return -1;
 }
 
 static int extract_xml(char *data, ssize_t dlen, int *contlen, char **xml)
@@ -252,7 +245,7 @@ static int extract_xml(char *data, ssize_t dlen, int *contlen, char **xml)
 	return 0;
 }
 
-static void tsp_create_tunnel(struct client_session *session,
+static int tsp_create_tunnel(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *createfail = "310 Unsupported client tunnel\r\n";
@@ -281,16 +274,14 @@ static void tsp_create_tunnel(struct client_session *session,
 	dbg_tsp("Create tunnel check passed");
 	tsp_reply(session, tsp, build_tunnel_offer(session));
 	session->status = STAT_CONFIRM;
-	put_session(session);
-	return;
+	return 0;
 
 create_error:
 	tsp_reply(session, tsp, createfail);
-	kill_session(session);
-
+	return -1;
 }
 
-static void tsp_confirm_tunnel(struct client_session *session,
+static int tsp_confirm_tunnel(struct client_session *session,
 				struct tsphdr *tsp, ssize_t dlen)
 {
 	static const char *conffail = "310 Failed to confirm client tunnel\r\n";
@@ -308,15 +299,14 @@ static void tsp_confirm_tunnel(struct client_session *session,
 	tsp_reply(session, tsp, "");
 	session->status = STAT_ESTAB;
 	insert_keepalive(session);
-	put_session(session);
 	tspslog(LOG_INFO, "Client %s:%u connected.",
 			inet_ntoa(session->v4addr),
 			session->v4port);
-	return;
+	return 0;
 
 ack_error:
 	tsp_reply(session, tsp, conffail);
-	kill_session(session);
+	return -1;
 }
 
 static void tsp_keepalive(struct client_session *session,
@@ -341,7 +331,6 @@ static void tsp_disconnect(struct client_session *session,
 	tspslog(LOG_INFO, "Client %s:%u unauthorized",
 			inet_ntoa(session->v4addr),
 			session->v4port);
-	kill_session(session);
 }
 
 static void tsp_data(struct client_session *session,
@@ -355,7 +344,6 @@ static void tsp_data(struct client_session *session,
 		tspslog(LOG_ERR, "Droped packet due to client v6 address mismatch:\n\t%s\n\t%s",
 				inet_ntop(AF_INET6, &v6hdr->ip6_src, addr1, sizeof(addr1)),
 				inet_ntop(AF_INET6, &session->v6addr, addr2, sizeof(addr2)));
-		put_session(session);
 		return;
 	}
 
@@ -368,12 +356,10 @@ static void tsp_data(struct client_session *session,
 			inet_ntop(AF_INET6, &v6hdr->ip6_src, addr1, sizeof(addr1)),
 			inet_ntop(AF_INET6, &v6hdr->ip6_dst, addr2, sizeof(addr2)));
 		put_session(dstsess);
-		put_session(session);
 		return;
 	}
 
 	tun_write(tsp, dlen);
-	put_session(session);
 }
 
 void process_sock_packet(const struct sockaddr_in *client,
@@ -381,6 +367,7 @@ void process_sock_packet(const struct sockaddr_in *client,
 {
 	struct client_session *session;
 	struct tsphdr *tsphdr = (struct tsphdr *)data;
+	int rc = 0;
 
 	if (len < sizeof(struct tsphdr))
 		return;
@@ -398,31 +385,31 @@ void process_sock_packet(const struct sockaddr_in *client,
 			tspslog(LOG_INFO, "Client %s:%u connecting.",
 					inet_ntoa(client->sin_addr),
 					ntohs(client->sin_port));
-			tsp_version_cap(session, tsphdr, len);
+			rc = tsp_version_cap(session, tsphdr, len);
 			break;
 		case STAT_AUTH:
 			dbg_tsp("STAT_AUTH");
-			tsp_auth(session, tsphdr, len);
+			rc = tsp_auth(session, tsphdr, len);
 			break;
 		case STAT_AUTH_PLAIN:
 			dbg_tsp("STAT_AUTH_PLAIN");
-			tsp_auth_plain(session, tsphdr, len);
+			rc = tsp_auth_plain(session, tsphdr, len);
 			break;
 		case STAT_AUTH_MD5:
 			dbg_tsp("STAT_AUTH_MD5");
-			tsp_auth_md5(session, tsphdr, len);
+			rc = tsp_auth_md5(session, tsphdr, len);
 			break;
 		case STAT_AUTH_MD5_OK:
 			dbg_tsp("STAT_AUTH_MD5_OK");
-			tsp_auth_md5_ok(session, tsphdr, len);
+			rc = tsp_auth_md5_ok(session, tsphdr, len);
 			break;
 		case STAT_CREATE:
 			dbg_tsp("STAT_CREATE");
-			tsp_create_tunnel(session, tsphdr, len);
+			rc = tsp_create_tunnel(session, tsphdr, len);
 			break;
 		case STAT_CONFIRM:
 			dbg_tsp("STAT_CONFIRM");
-			tsp_confirm_tunnel(session, tsphdr, len);
+			rc = tsp_confirm_tunnel(session, tsphdr, len);
 			break;
 		case STAT_ESTAB:
 			dbg_tsp("STAT_ESTAB");
@@ -435,7 +422,13 @@ void process_sock_packet(const struct sockaddr_in *client,
 			tsp_data(session, tsphdr, len);
 		} else {
 			tsp_disconnect(session, tsphdr, len);
+			rc = -1;
 		}
 	}
+
+	if (rc != 0)
+		kill_session(session);
+	else
+		put_session(session);
 }
 
