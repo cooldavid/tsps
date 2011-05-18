@@ -80,7 +80,8 @@ search_session_byv4(const struct sockaddr_in *addr)
 	key = hash_v4(addr);
 	session = v4hash[key];
 	while (session) {
-		if (session->v4addr.s_addr == addr->sin_addr.s_addr &&
+		if (session->status != STAT_DESTROY &&
+		    session->v4addr.s_addr == addr->sin_addr.s_addr &&
 		    session->v4port == ntohs(addr->sin_port))
 			return session;
 		session = session->v4next;
@@ -98,7 +99,8 @@ search_session_byv6(const struct in6_addr *addr6)
 	key = hash_v6(addr6);
 	session = v6hash[key];
 	while (session) {
-		if (!memcmp(&session->v6addr, addr6, sizeof(*addr6)))
+		if (session->status != STAT_DESTROY &&
+		    !memcmp(&session->v6addr, addr6, sizeof(*addr6)))
 			return session;
 		session = session->v6next;
 	}
@@ -184,8 +186,6 @@ get_session_byv4(const struct sockaddr_in *addr)
 	session = search_session_byv4(addr);
 	if (!session)
 		session = create_session(addr);
-	if (session->status == STAT_DESTROY)
-		session = NULL;
 	else
 		++(session->refcnt);
 	pthread_mutex_unlock(&lock_session);
@@ -198,12 +198,8 @@ _get_session_byv6(const struct in6_addr *addr6)
 	struct client_session *session;
 
 	session = search_session_byv6(addr6);
-	if (session) {
-		if (session->status == STAT_DESTROY)
-			session = NULL;
-		else
-			++(session->refcnt);
-	}
+	if (session)
+		++(session->refcnt);
 	return session;
 }
 
