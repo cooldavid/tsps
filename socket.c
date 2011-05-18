@@ -175,7 +175,7 @@ void socket_reply_icmp6(const struct in_addr *addr, in_port_t port, void *icmp6b
 	ip6hdr->ip6_dst = ip6hdr->ip6_src;
 	ip6hdr->ip6_src = server.v6sockaddr.sin6_addr;
 	icmp6hdr->icmp6_type = ICMP6_ECHO_REPLY;
-	icmp6hdr->icmp6_cksum -= htons(ICMP6_ECHO_REPLY - ICMP6_ECHO_REQUEST);
+	icmp6hdr->icmp6_cksum -= htons((ICMP6_ECHO_REPLY - ICMP6_ECHO_REQUEST) << 8);
 	socket_sendto(icmp6buf, dlen, addr, port);
 }
 
