@@ -186,8 +186,7 @@ get_session_byv4(const struct sockaddr_in *addr)
 	session = search_session_byv4(addr);
 	if (!session)
 		session = create_session(addr);
-	else
-		++(session->refcnt);
+	++(session->refcnt);
 	pthread_mutex_unlock(&lock_session);
 	return session;
 }
