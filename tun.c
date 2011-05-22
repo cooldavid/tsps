@@ -32,6 +32,7 @@
 #include <net/if.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 static int tun_open(void)
 {
@@ -155,40 +156,60 @@ int bind_tunif(void)
 #endif
 }
 
+static pthread_mutex_t tun_lock = PTHREAD_MUTEX_INITIALIZER;
+
 void tun_read(void *data, ssize_t *len)
 {
+	struct tun_pi *pi = (struct tun_pi *)data;
+	struct ip6_hdr *ip6 = (struct ip6_hdr *)(pi + 1);
+	static const int hdrlen = sizeof(struct tun_pi) + sizeof(struct ip6_hdr);
+	int offset = 0, datalen = 0;
+
+	pthread_mutex_lock(&tun_lock);
+	memset(data, 0xFF, PHDRSZ + MTU);
 	do {
-		*len = read(server.tunfd, data, MTU);
+		*len = read(server.tunfd, data + offset, PHDRSZ + MTU - offset);
 		if (*len == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
 			tspslog(LOG_ERR, "Fail to read from server tun interface");
 			exit(EXIT_FAILURE);
 		}
-	} while (*len <= 0);
+		if (*len > 0)
+			offset += *len;
+		if (datalen == 0 && offset >= hdrlen) {
+			if (ntohs(pi->proto) != ETH_P_IPV6)
+				break;
+			datalen = ntohs(ip6->ip6_plen) + hdrlen;
+		}
+	} while (*len <= 0 || datalen == 0 || offset < datalen);
+	pthread_mutex_unlock(&tun_lock);
 }
 
 void tun_write(void *data, size_t len)
 {
 	struct tun_pi *pi;
-	int rc;
+	int rc, offset = 0;
 
 	if (sizeof(struct tun_pi) > PHDRSZ) {
 		tspslog(LOG_ERR, "Preserved header space not enough");
 		exit(EXIT_FAILURE);
-	} else {
-		pi = (struct tun_pi *)
-			((uint8_t *)data - sizeof(struct tun_pi));
 	}
 
+	pi = (struct tun_pi *)((uint8_t *)data - sizeof(struct tun_pi));
+	len += sizeof(struct tun_pi);
 	pi->flags = 0;
 	pi->proto = htons(ETH_P_IPV6);
+	pthread_mutex_lock(&tun_lock);
 	do {
-		rc = write(server.tunfd, pi, sizeof(struct tun_pi) + len);
+		rc = write(server.tunfd, ((void *)pi) + offset, len - offset);
 		if (rc == -1 &&
 		    errno != EAGAIN && errno != EINTR) {
 			tspslog(LOG_ERR, "Fail to write to server tun interface");
 			break;
 		}
-	} while (rc <= 0);
+		if (rc > 0)
+			offset += rc;
+	} while (rc <= 0 || offset < len);
+	pthread_mutex_unlock(&tun_lock);
 }
 

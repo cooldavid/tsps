@@ -33,7 +33,7 @@
 enum {
 	QUEUE_SIZE = 1024,
 };
-static char queue_tun[QUEUE_SIZE][MTU];
+static char queue_tun[QUEUE_SIZE][PHDRSZ + MTU];
 static char queue_sock[QUEUE_SIZE][PHDRSZ + MTU];
 static ssize_t length_tun[QUEUE_SIZE];
 static ssize_t length_sock[QUEUE_SIZE];

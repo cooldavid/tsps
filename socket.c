@@ -29,6 +29,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
+
+static pthread_mutex_t sock_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int bind_socket(void)
 {
@@ -53,6 +56,7 @@ int bind_socket(void)
 void socket_recvfrom(void *data, ssize_t *len,
 			const struct sockaddr_in *addr, socklen_t *scklen)
 {
+	pthread_mutex_lock(&sock_lock);
 	do {
 		*len = recvfrom(server.sockfd, data, MTU, 0,
 				(struct sockaddr *)addr, scklen);
@@ -62,6 +66,7 @@ void socket_recvfrom(void *data, ssize_t *len,
 			exit(EXIT_FAILURE);
 		}
 	} while (*len <= 0);
+	pthread_mutex_unlock(&sock_lock);
 }
 
 void socket_sendto(void *data, size_t len, const struct in_addr *addr, in_port_t port)
@@ -73,6 +78,7 @@ void socket_sendto(void *data, size_t len, const struct in_addr *addr, in_port_t
 	saddr.sin_family = AF_INET;
 	saddr.sin_addr.s_addr = addr->s_addr;
 	saddr.sin_port = htons(port);
+	pthread_mutex_lock(&sock_lock);
 	do {
 		rc = sendto(server.sockfd, data, len, 0, (struct sockaddr *)&saddr, scklen);
 		if (rc == -1 &&
@@ -81,6 +87,7 @@ void socket_sendto(void *data, size_t len, const struct in_addr *addr, in_port_t
 			break;
 		}
 	} while (rc <= 0);
+	pthread_mutex_unlock(&sock_lock);
 }
 
 static int icmp6_cksum(const struct ip6_hdr *ip6, const struct icmp6_hdr *icp,
