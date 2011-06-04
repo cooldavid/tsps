@@ -41,7 +41,7 @@ static int parse_args(int argc, char *argv[])
 	server.mode = UNDEFINED_MODE;
 	server.v4sockaddr.sin_port = htons(3653);
 
-	while ((opt = getopt(argc, argv, "t:b:p:n:NAHh:u:P:d:D")) != -1) {
+	while ((opt = getopt(argc, argv, "t:b:p:n:NAHh:u:P:d:Dl:B:")) != -1) {
 		switch (opt) {
 		case 't':
 			strncpy(server.tundev, optarg, 31);
@@ -135,6 +135,12 @@ static int parse_args(int argc, char *argv[])
 		case 'D':
 			server.debug = 1;
 			break;
+		case 'l':
+			server.ldap_uri = strdup(optarg);
+			break;
+		case 'B':
+			server.ldap_user_base = strdup(optarg);
+			break;
 		default:
 
 			return -1;
@@ -150,8 +156,10 @@ static int parse_args(int argc, char *argv[])
 static void usage(const char *progname)
 {
 	fprintf(stderr, "\n"
-		"Usage: %s %s -b IPv4_bind_address [-p IPv4_bind_port] -n IPv6_prefix [-A|-N|-H]\n"
-		"          -h MySQL_Host -u MySQL_User -P MySQL_Pass -d MySQL_DBName -D\n"
+		"Usage: %s %s -b IPv4_bind_address [-p IPv4_bind_port] -n IPv6_prefix\n"
+		"          [-A|-N|-H] [-D]\n"
+		"          [-h MySQL_Host -u MySQL_User -P MySQL_Pass -d MySQL_DBName]\n"
+		"          [-l LDAP_URI -B LDAP_user_base]\n"
 		"       IPv4_bind_address: Used for client to connect\n"
 		"                          ex: 123.123.123.123\n"
 		"       IPv4_bind_port:    Used for client to connect\n"
@@ -189,8 +197,9 @@ static int check_server_configure(void)
 	}
 
 	if (server.mode != ANONYMOUS_MODE &&
-	    (!server.dbhost || !server.dbuser || !server.dbpass || !server.dbname)) {
-		fprintf(stderr, "Must specify MySQL parameters in authenticated mode\n");
+	    (!server.dbhost || !server.dbuser || !server.dbpass || !server.dbname) &&
+	    !server.ldap_uri) {
+		fprintf(stderr, "Must specify MySQL or LDAP parameters in authenticated mode\n");
 		return -1;
 	}
 
@@ -243,9 +252,15 @@ int main(int argc, char *argv[], char *envv[])
 		return EXIT_FAILURE;
 	}
 
-	if (server.mode != ANONYMOUS_MODE && mysql_initialize()) {
-		fprintf(stderr, "Initialize MySQL error\n");
-		return EXIT_FAILURE;
+	if (server.mode != ANONYMOUS_MODE) {
+		if (server.dbhost && mysql_initialize()) {
+			fprintf(stderr, "Initialize MySQL error\n");
+			return EXIT_FAILURE;
+		}
+		if (server.ldap_uri && tsps_ldap_initialize()) {
+			fprintf(stderr, "Initialize LDAP error\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	if (!server.debug) {

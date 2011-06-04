@@ -333,23 +333,30 @@ int login_plain(struct client_session *session, const char *user, const char *pa
 	int i, id;
 
 	dbg_login("Plain-login: %s %s", user, pass);
-	if (mysql_get_passhash(user, passhash))
-		return -1;
+	if (server.dbhost) {
+		if (mysql_get_passhash(user, passhash))
+			return -1;
+	
+		dbg_login("Plain-login: Stored hash %s", passhash);
+		if (strlen(passhash) != 32)
+			return -1;
+	
+		sprintf(buf, "%s:" REALM ":%s", user, pass);
+		MD5((unsigned char *)buf, strlen(buf), HA1);
+		for (i = 0; i < 16; ++i)
+			sprintf((char *)(HEXHA1 + (i * 2)), "%02x", HA1[i]);
+	
+		dbg_login("Plain-login: Gened hash %s", (char *)HEXHA1);
+		if (strcmp(passhash, (char *)HEXHA1))
+			return -1;
+	
+		id = mysql_get_userid(user);
+	} else /* if (server.ldap_uri) */ {
+		if (tsps_ldap_login(user, pass))
+			return -1;
+		id = tsps_ldap_get_userid(user);
+	}
 
-	dbg_login("Plain-login: Stored hash %s", passhash);
-	if (strlen(passhash) != 32)
-		return -1;
-
-	sprintf(buf, "%s:" REALM ":%s", user, pass);
-	MD5((unsigned char *)buf, strlen(buf), HA1);
-	for (i = 0; i < 16; ++i)
-		sprintf((char *)(HEXHA1 + (i * 2)), "%02x", HA1[i]);
-
-	dbg_login("Plain-login: Gened hash %s", (char *)HEXHA1);
-	if (strcmp(passhash, (char *)HEXHA1))
-		return -1;
-
-	id = mysql_get_userid(user);
 	if (id == -1)
 		return -1;
 

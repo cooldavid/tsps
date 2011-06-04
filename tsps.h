@@ -94,6 +94,8 @@ struct tspserver {
 	char			*dbuser;
 	char			*dbpass;
 	char			*dbname;
+	const char		*ldap_uri;
+	const char		*ldap_user_base;
 };
 
 enum {
@@ -199,6 +201,11 @@ void parse_tunnel_ack(char *xml, int contlen, struct tunnel_ack *ack);
 int mysql_initialize(void);
 int mysql_get_userid(const char *user);
 int mysql_get_passhash(const char *user, char *pass);
+
+/* ldap.c */
+int tsps_ldap_initialize(void);
+int tsps_ldap_get_userid(const char *user);
+int tsps_ldap_login(const char *user, const char *pass);
 
 /* log.c */
 void tspslog(int prio, const char *msg, ...);
