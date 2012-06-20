@@ -39,6 +39,8 @@ static int parse_args(int argc, char *argv[])
 	char v6addr[64];
 
 	server.mode = UNDEFINED_MODE;
+	server.v4sockaddr.sin_family = AF_INET;
+	server.v6sockaddr.sin6_family = AF_INET6;
 	server.v4sockaddr.sin_port = htons(3653);
 
 	while ((opt = getopt(argc, argv, "t:b:p:n:NAHh:u:P:d:Dl:B:")) != -1) {
