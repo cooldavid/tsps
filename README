@@ -2,6 +2,11 @@ An implementation of RFC5572.
 And complete auto registration framework.
 Tested with gw6c and gogoc1.2 client.
 
-Only partial implementation has done.
-This project is still actively on-going!
+This implementation should work with most normal use cases.
+
+Special thanks:
+	Stephen Rothwell <sfr@canb.auug.org.au>
+	Implemented LDAP support, and provide some fixes.
+
+Enjoy. :)
 
